@@ -28,7 +28,7 @@ public interface BookMapper {
     @Select("SELECT COUNT(*) FROM book")
     int countAll();
 
-    @Select("SELECT id,title,author,is_borrowed FROM book LIMIT #{size} OFFSET #{offset}")
+    @Select("SELECT id,title,author,is_borrowed AS borrowed FROM book LIMIT #{size} OFFSET #{offset}")
     List<Book> findPage(@Param("size") int size,@Param("offset") int offset);
 
 }

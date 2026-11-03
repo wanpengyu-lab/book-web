@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 28px 0 24px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,.15);
+        }
+        .header h1 { font-size: 26px; font-weight: 700; letter-spacing: 2px; }
+        .header p { font-size: 13px; opacity: .8; margin-top: 6px; }
+
+        /* 主容器 */
+        .container { max-width: 900px; margin: -20px auto 40px; padding: 0 20px; }
+
+        /* 统计卡片 */
+        .stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            flex: 1;
+            background: #fff;
+            border-radius: 10px;
+            padding: 18px 20px;
+            box-shadow: 0 1px 6px rgba(0,0,0,.06);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .stat-card .icon {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .stat-card .num { font-size: 22px; font-weight: 700; }
+        .stat-card .label { font-size: 13px; color: #888; }
+        .stat-card.total .icon { background: #e8ecff; color: #5568d3; }
+        .stat-card.available .icon { background: #e6f7ed; color: #52c41a; }
+        .stat-card.borrowed .icon { background: #fff1e6; color: #fa8c16; }
+
+        /* 工具栏 */
+        .toolbar {
+            background: #fff;
+            border-radius: 10px 10px 0 0;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .toolbar h2 { font-size: 16px; font-weight: 600; }
+        .toolbar .actions { display: flex; gap: 10px; align-items: center; }
+        .search-box {
+            position: relative;
+        }
+        .search-box input {
+            padding: 7px 12px 7px 32px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 180px;
+            outline: none;
+            transition: border-color .2s;
+        }
+        .search-box input:focus { border-color: #667eea; }
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 9px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            opacity: .5;
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-primary { background: #667eea; color: #fff; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-edit { background: #e8ecff; color: #5568d3; }
+        .btn-edit:hover { background: #d1d9f5; }
+        .btn-delete { background: #fff0f0; color: #ff4d4f; }
+        .btn-delete:hover { background: #ffd6d6; }
+        .btn-borrow { background: #fff7e6; color: #fa8c16; }
+        .btn-borrow:hover { background: #ffe7ba; }
+        .btn-return { background: #e6f7ed; color: #52c41a; }
+        .btn-return:hover { background: #d4f0dd; }
+
+        /* 表格 */
+        .table-wrap {
+            background: #fff;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 6px rgba(0,0,0,.06);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #fafafa; }
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        td {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        tbody tr:hover { background: #f9faff; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tag.available { background: #e6f7ed; color: #52c41a; }
+        .tag.borrowed { background: #fff1e6; color: #fa8c16; }
+
+        .actions-cell { display: flex; gap: 8px; }
+        .empty-row td { text-align: center; color: #aaa; padding: 40px 0; }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            padding: 18px 0;
+        }
+        .pagination button {
+            min-width: 34px; height: 34px;
+            border: 1px solid #d9d9d9;
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            transition: all .2s;
+        }
+        .pagination button:hover:not(:disabled) { border-color: #667eea; color: #667eea; }
+        .pagination button.active { background: #667eea; color: #fff; border-color: #667eea; }
+        .pagination button:disabled { color: #ccc; cursor: not-allowed; }
+        .page-info { font-size: 13px; color: #888; margin: 0 10px; }
+
+        /* 模态框 */
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .overlay.show { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            width: 420px;
+            max-width: 92vw;
+            box-shadow: 0 8px 30px rgba(0,0,0,.18);
+            animation: slideIn .25s ease;
+        }
+        @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 { font-size: 17px; font-weight: 600; }
+        .modal-header .close {
+            font-size: 22px;
+            color: #999;
+            cursor: pointer;
+            background: none;
+            border: none;
+            line-height: 1;
+        }
+        .modal-header .close:hover { color: #333; }
+        .modal-body { padding: 24px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .form-group label .req { color: #ff4d4f; }
+        .form-group input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color .2s;
+        }
+        .form-group input:focus { border-color: #667eea; }
+        .form-group input:disabled { background: #f5f5f5; color: #999; }
+        .modal-footer {
+            padding: 0 24px 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-cancel { background: #f0f0f0; color: #666; }
+        .btn-cancel:hover { background: #e0e0e0; }
+
+        /* 提示条 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            box-shadow: 0 4px 12px rgba(0,0,0,.15);
+            animation: toastIn .3s ease;
+        }
+        @keyframes toastIn { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+        .toast.success { background: #52c41a; color: #fff; }
+        .toast.error { background: #ff4d4f; color: #fff; }
+
+        .loading { text-align: center; padding: 60px 0; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📚 图书管理系统</h1>
+    <p>Book Management System</p>
+</div>
+
+<div class="container">
+    <!-- 统计卡片 -->
+    <div class="stats">
+        <div class="stat-card total">
+            <div class="icon">📖</div>
+            <div><div class="num" id="stat-total">0</div><div class="label">总藏书量</div></div>
+        </div>
+        <div class="stat-card available">
+            <div class="icon">✅</div>
+            <div><div class="num" id="stat-available">0</div><div class="label">可借阅</div></div>
+        </div>
+        <div class="stat-card borrowed">
+            <div class="icon">📤</div>
+            <div><div class="num" id="stat-borrowed">0</div><div class="label">已借出</div></div>
+        </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <h2>图书列表</h2>
+        <div class="actions">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索书名或作者..." oninput="handleSearch()">
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">+ 添加图书</button>
+        </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:70px">编号</th>
+                    <th>书名</th>
+                    <th style="width:160px">作者</th>
+                    <th style="width:100px">状态</th>
+                    <th style="width:240px">操作</th>
+                </tr>
+            </thead>
+            <tbody id="bookTableBody">
+                <tr class="empty-row"><td colspan="5">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- 添加/编辑模态框 -->
+<div class="overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">添加图书</h3>
+            <button class="close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>编号 <span class="req">*</span></label>
+                <input type="number" id="formId" placeholder="请输入图书编号">
+            </div>
+            <div class="form-group">
+                <label>书名 <span class="req">*</span></label>
+                <input type="text" id="formTitle" placeholder="请输入书名">
+            </div>
+            <div class="form-group">
+                <label>作者 <span class="req">*</span></label>
+                <input type="text" id="formAuthor" placeholder="请输入作者">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" id="formSubmit" onclick="submitForm()">确定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===== 全局状态 =====
+    let currentPage = 1;
+    const pageSize = 5;
+    let totalPages = 1;
+    let allBooks = [];      // 全量数据（用于搜索过滤）
+    let displayBooks = [];   // 当前展示的数据
+    let editingId = null;    // 正在编辑的图书ID，null=新增模式
+
+    // ===== API 封装 =====
+    const API = {
+        list: () => fetch('/books').then(r => r.json()),
+        page: (page, size) => fetch(`/books/page?page=${page}&size=${size}`).then(r => r.json()),
+        add: (data) => fetch('/books', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
+        update: (id, data) => fetch(`/books/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
+        delete: (id) => fetch(`/books/${id}`, { method: 'DELETE' }).then(r => r.json()),
+        borrow: (id) => fetch(`/books/${id}/borrowed`, { method: 'PUT' }).then(r => r.json()),
+        return: (id) => fetch(`/books/${id}/return`, { method: 'PUT' }).then(r => r.json()),
+    };
+
+    // ===== 初始化 =====
+    loadBooks();
+
+    async function loadBooks() {
+        const body = document.getElementById('bookTableBody');
+        body.innerHTML = '<tr class="empty-row"><td colspan="5">加载中...</td></tr>';
+        try {
+            const res = await API.page(currentPage, pageSize);
+            allBooks = res.list || [];
+            displayBooks = [...allBooks];
+            totalPages = Math.ceil(res.total / pageSize) || 1;
+            updateStats(res.total);
+            renderTable();
+            renderPagination(res.total);
+        } catch (e) {
+            body.innerHTML = '<tr class="empty-row"><td colspan="5">加载失败，请确认后端服务已启动</td></tr>';
+        }
+    }
+
+    // ===== 搜索 =====
+    function handleSearch() {
+        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+        if (!keyword) {
+            displayBooks = [...allBooks];
+        } else {
+            displayBooks = allBooks.filter(b =>
+                (b.title || '').toLowerCase().includes(keyword) ||
+                (b.author || '').toLowerCase().includes(keyword)
+            );
+        }
+        renderTable();
+    }
+
+    // ===== 渲染表格 =====
+    function renderTable() {
+        const body = document.getElementById('bookTableBody');
+        if (displayBooks.length === 0) {
+            body.innerHTML = '<tr class="empty-row"><td colspan="5">暂无图书数据</td></tr>';
+            // 更新统计为当前页的可用/借出数
+            updateStatsForCurrentPage();
+            return;
+        }
+        body.innerHTML = displayBooks.map(b => `
+            <tr>
+                <td>${b.id}</td>
+                <td>${escapeHtml(b.title)}</td>
+                <td>${escapeHtml(b.author)}</td>
+                <td>
+                    <span class="tag ${b.borrowed ? 'borrowed' : 'available'}">
+                        ${b.borrowed ? '已借出' : '在馆'}
+                    </span>
+                </td>
+                <td>
+                    <div class="actions-cell">
+                        ${b.borrowed
+                            ? `<button class="btn btn-sm btn-return" onclick="returnBook(${b.id})">还书</button>`
+                            : `<button class="btn btn-sm btn-borrow" onclick="borrowBook(${b.id})">借阅</button>`
+                        }
+                        <button class="btn btn-sm btn-edit" onclick="openEditModal(${b.id})">编辑</button>
+                        <button class="btn btn-sm btn-delete" onclick="deleteBook(${b.id}, '${escapeHtml(b.title)}')">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        updateStatsForCurrentPage();
+    }
+
+    // ===== 统计 =====
+    function updateStats(total) {
+        document.getElementById('stat-total').textContent = total;
+    }
+    function updateStatsForCurrentPage() {
+        const available = displayBooks.filter(b => !b.borrowed).length;
+        const borrowed = displayBooks.filter(b => b.borrowed).length;
+        document.getElementById('stat-available').textContent = available;
+        document.getElementById('stat-borrowed').textContent = borrowed;
+    }
+
+    // ===== 分页 =====
+    function renderPagination(total) {
+        const el = document.getElementById('pagination');
+        if (total <= pageSize) {
+            el.innerHTML = '';
+            return;
+        }
+        let html = '';
+        html += `<button onclick="goPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+        html += `<button onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+        html += `<span class="page-info">共 ${total} 本</span>`;
+        el.innerHTML = html;
+    }
+
+    function goPage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        document.getElementById('searchInput').value = '';
+        loadBooks();
+    }
+
+    // ===== 借阅 / 还书 =====
+    async function borrowBook(id) {
+        try {
+            const res = await API.borrow(id);
+            if (res.success) { showToast('借阅成功', 'success'); loadBooks(); }
+            else { showToast(res.message || '借阅失败', 'error'); }
+        } catch (e) { showToast('网络错误', 'error'); }
+    }
+    async function returnBook(id) {
+        try {
+            const res = await API.return(id);
+            if (res.success) { showToast('还书成功', 'success'); loadBooks(); }
+            else { showToast(res.message || '还书失败', 'error'); }
+        } catch (e) { showToast('网络错误', 'error'); }
+    }
+
+    // ===== 删除 =====
+    async function deleteBook(id, title) {
+        if (!confirm(`确定要删除《${title}》吗？`)) return;
+        try {
+            const res = await API.delete(id);
+            if (res.success) { showToast('删除成功', 'success'); loadBooks(); }
+            else { showToast(res.message || '删除失败', 'error'); }
+        } catch (e) { showToast('网络错误', 'error'); }
+    }
+
+    // ===== 模态框：添加 / 编辑 =====
+    function openAddModal() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = '添加图书';
+        document.getElementById('formId').value = '';
+        document.getElementById('formId').disabled = false;
+        document.getElementById('formTitle').value = '';
+        document.getElementById('formAuthor').value = '';
+        document.getElementById('modalOverlay').classList.add('show');
+        document.getElementById('formId').focus();
+    }
+
+    function openEditModal(id) {
+        const book = allBooks.find(b => b.id === id);
+        if (!book) return;
+        editingId = id;
+        document.getElementById('modalTitle').textContent = '编辑图书';
+        document.getElementById('formId').value = book.id;
+        document.getElementById('formId').disabled = true;
+        document.getElementById('formTitle').value = book.title || '';
+        document.getElementById('formAuthor').value = book.author || '';
+        document.getElementById('modalOverlay').classList.add('show');
+        document.getElementById('formTitle').focus();
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('show');
+        editingId = null;
+    }
+
+    // 点击遮罩关闭
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+    // ESC 关闭
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    async function submitForm() {
+        const idVal = document.getElementById('formId').value.trim();
+        const titleVal = document.getElementById('formTitle').value.trim();
+        const authorVal = document.getElementById('formAuthor').value.trim();
+
+        if (!idVal || !titleVal || !authorVal) {
+            showToast('请填写完整信息', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('formSubmit');
+        btn.disabled = true;
+        btn.textContent = '提交中...';
+
+        try {
+            let res;
+            if (editingId === null) {
+                res = await API.add({ id: parseInt(idVal), title: titleVal, author: authorVal });
+            } else {
+                res = await API.update(editingId, { title: titleVal, author: authorVal });
+            }
+            if (res.success) {
+                showToast(editingId === null ? '添加成功' : '修改成功', 'success');
+                closeModal();
+                loadBooks();
+            } else {
+                showToast(res.message || '操作失败', 'error');
+            }
+        } catch (e) {
+            showToast('网络错误', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '确定';
+        }
+    }
+
+    // ===== 工具函数 =====
+    function showToast(msg, type) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+</script>
+
+</body>
+</html>
