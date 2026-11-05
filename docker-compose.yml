@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    container_name: boook-web
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # 通过 fastapi-net 网络用容器名 mysql 连接数据库
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/jdbc_demo?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      # 密码强制显式传入，无默认值兜底（PRD 3.3）
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?必须显式提供}
+    networks:
+      - fastapi-net
+
+networks:
+  fastapi-net:
+    external: true
