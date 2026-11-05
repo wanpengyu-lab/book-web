@@ -78,7 +78,7 @@ boook-web 为 Spring Boot 4.1.2 + MyBatis + MySQL 的图书管理系统，已跑
 | v0.4 | A | 借阅闭环 | F-06 · 07 | borrow_record、并发安全借还、记录查询 | 2 天 |
 | v0.5 | A | 图书扩展与看板接口 | F-08 · 09 · 14 | book 字段扩展、详情聚合、/api/dashboard | 1.5 天 |
 | v0.6 | A | 预约与共借推荐接口 | F-10 · 13 | 预约状态机、通知、定时提醒、related 接口 | 1.5 天 |
-| v0.7 | A | 开放数据与 AI 接口 | F-11 · 12 | ISBN 代理、GLM 馆藏助手（API 契约冻结点） | 2 天 |
+| v0.7 | A | 开放数据与 AI 接口 | F-11 · 12 | ISBN 代理、DeepSeek 馆藏助手（API 契约冻结点） | 2 天 |
 | v0.8 | **B 前端** | 前端工程与六页（mock） | 界面章 5.1–5.2 | book-web-ui 工程、mock 层、六页 + 全局框架 | 3–4 天 |
 | v0.9 | B | 界面完整化与亮点（mock） | 界面章 5.3–5.8 | 动效/交互/响应式/看板图表/AI 侧栏/PWA/3D | 3 天 |
 | v0.10 | **C 相连** | 真实连接与切换 | 集成 | mock→真实 API、删旧端点与旧页面、端到端验收 | 1–2 天 |
@@ -101,7 +101,7 @@ boook-web 为 Spring Boot 4.1.2 + MyBatis + MySQL 的图书管理系统，已跑
 | 接口文档 | springdoc-openapi（与 Boot 4.1.2 兼容的最新稳定版） | knife4j / springfox / 手写文档 |
 | 代码简化 | Lombok（新代码 `@Data` / `@RequiredArgsConstructor` + final 构造注入） | 字段注入 `@Autowired`（新代码禁止） |
 | DDL 管理 | 手动 SQL 文件 `docs/sql/V{major}_{minor}__描述.sql`，按版本顺序执行一次 | Flyway / Liquibase / JPA 自动建表 |
-| 外部 HTTP | Spring `RestClient`（ISBN 代理、GLM 调用） | RestTemplate / WebClient / OkHttp |
+| 外部 HTTP | Spring `RestClient`（ISBN 代理、AI 调用） | RestTemplate / WebClient / OkHttp |
 | 定时任务 | `@Scheduled`，cron `0 0 9 * * *`，zone `Asia/Shanghai` | Quartz / xxl-job |
 | API 前缀 | 新接口一律 `/api` 前缀；旧无前缀端点**保留至 v0.10 统一删除**（A 阶段仅标 `@Deprecated`） | 提前删除旧端点 |
 | admin 初始化 | `CommandLineRunner`：无 admin 账号且配置了 `ADMIN_INIT_PASSWORD` 则创建；未配置且无 admin 时**启动失败**并提示 | init.sql 插账号、默认密码兜底 |
@@ -138,7 +138,7 @@ boook-web 为 Spring Boot 4.1.2 + MyBatis + MySQL 的图书管理系统，已跑
 | 预约状态机 | `waiting → notified → fulfilled`，取消为 `cancelled`；还书事务内通知队首 |
 | ISBN 数据源顺序 | OpenLibrary → Google Books（依次尝试），超时 5s（`ISBN_PROXY_TIMEOUT`） |
 | AI 工具集 | 仅两个：`search_books(keyword/category)`、`get_book_status(id)`；非流式 |
-| GLM 接入 | 智谱开放平台，key 走 `GLM_API_KEY`，模型名默认常量 `glm-4.6`、可被 `GLM_MODEL` 覆盖；模型不存在 → 阻塞上报，禁止换模型 |
+| AI 接入 | DeepSeek 开放平台（OpenAI 兼容 /chat/completions），key 走 `DEEPSEEK_API_KEY`，模型默认常量 `deepseek-chat`、可被 `DEEPSEEK_MODEL` 覆盖；模型不存在 → 阻塞上报，禁止换模型 | 自建 LLM 代理、其他厂商 |
 | 旧端点兼容策略 | A/B 阶段旧无前缀端点保留（`@Deprecated`），旧 index.html 仅做维持可用的最小改动；v0.10 统一删除旧端点与旧页面 |
 
 ### 2.4 阶段与契约锁定（三阶段顺序的核心约束）
@@ -202,7 +202,7 @@ org.example.bookweb
 
 - SQL 一律参数化（`#{}` / `?`）；前端输出转义（Vue 模板默认转义，禁用 `v-html`）。
 - 仓库内不得出现任何明文凭据：`application.properties` 只留 `${SPRING_DATASOURCE_PASSWORD}` 占位；compose 用 `${MYSQL_ROOT_PASSWORD:?err}` 强制显式传入。
-- JWT secret / GLM key / admin 初始密码只走环境变量，**任何前端代码/构建产物不得包含密钥**。
+- JWT secret / DeepSeek key / admin 初始密码只走环境变量，**任何前端代码/构建产物不得包含密钥**。
 
 ### 3.4 测试底线
 
@@ -485,7 +485,7 @@ LIMIT 6;
 
 #### v0.7 · 开放数据与 AI 接口（F-11 · 12）★ API 契约冻结点
 
-**前置**：v0.6 验收通过。**目标**：ISBN 代理 + GLM 馆藏助手；**本版验收通过后 API 契约冻结（2.4）**。
+**前置**：v0.6 验收通过。**目标**：ISBN 代理 + DeepSeek 馆藏助手；**本版验收通过后 API 契约冻结（2.4）**。
 
 **交付物**：
 
@@ -493,7 +493,7 @@ LIMIT 6;
 |---|---|
 | 新增 | `IsbnService`（RestClient；先 OpenLibrary `https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&format=json&jscmd=data`，失败再 Google Books `https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}`；超时 `ISBN_PROXY_TIMEOUT` 默认 5000ms；映射 `{title,author,publisher,cover_url,description}`；全部未命中 → 200 + `data:null` + message「未查到该书目，请手动录入」）· `IsbnController` |
 | 新增接口 | `GET /api/isbn/{isbn}`（admin） |
-| 新增 | `AssistantService`（RestClient 调智谱开放平台；`GLM_API_KEY`；模型默认 `glm-4.6`、`GLM_MODEL` 可覆盖；function calling 仅两工具：`search_books(keyword/category)`、`get_book_status(id)`；**非流式**）· `AssistantController` |
+| 新增 | `AssistantService`（RestClient 调 DeepSeek 开放平台（OpenAI 兼容 /chat/completions）；`DEEPSEEK_API_KEY`；模型默认 `deepseek-chat`、`DEEPSEEK_MODEL` 可覆盖；function calling 仅两工具：`search_books(keyword/category)`、`get_book_status(id)`；**非流式**）· `AssistantController` |
 | 新增接口 | `POST /api/assistant/chat` `{message}` → `data: {reply: string}`（登录用户；未配置 key → 200 + `data:null` + message「AI 服务未配置」） |
 | 契约 | 本版完成后在 `docs/api-contract.md` 输出**全量 API 契约清单**（方法/路径/权限/请求/响应示例），作为 B 阶段 mock 的唯一依据 |
 | 修改前端 | 旧 `index.html`：无改动 |
@@ -505,13 +505,13 @@ LIMIT 6;
 - `docs/api-contract.md` 必须与代码一致（以代码为准生成，禁止手写漂移）。
 
 **本版禁止**：
-- 禁止换用豆瓣 / 其他书源（豆瓣 API 已关闭）；禁止换 OkHttp / WebClient；禁止流式 SSE（列为 v1.x 增强）；禁止把 GLM key 写进任何前端代码或日志。
+- 禁止换用豆瓣 / 其他书源（豆瓣 API 已关闭）；禁止换 OkHttp / WebClient；禁止流式 SSE（列为 v1.x 增强）；禁止把 DeepSeek key 写进任何前端代码或日志。
 
 **验收**：
 - [ ] 输入真实 ISBN 回填书名/作者/出版社/封面；无效 ISBN → data:null + 友好 message，不 500
 - [ ] 外网断开时同样返回 data:null + message，服务不崩
 - [ ] 问「馆里有哪些科幻小说」列出真实馆藏；问不存在的书答「馆内没有」
-- [ ] 未配置 GLM_API_KEY → 明确提示，不 500 堆栈
+- [ ] 未配置 DEEPSEEK_API_KEY → 明确提示，不 500 堆栈
 - [ ] `docs/api-contract.md` 覆盖全部 /api 端点
 - [ ] `./mvnw test` 全绿
 - [ ] **★ 契约冻结确认（用户或验收人签字后方可进入 v0.8）**
@@ -624,7 +624,7 @@ book-web-ui/
 - [ ] 详情 → 借阅 → 记录页可见 active 记录与应还日期 → 归还 → 状态翻转
 - [ ] 并发语义真机复现：两浏览器同借一书，后者收 40901 toast「该书刚被借走」
 - [ ] 扫码/手输 ISBN → 真实 OpenLibrary/Google Books 回填 → 建档
-- [ ] AI 助手真实 GLM：报馆藏正确；未配置 key 时明确提示
+- [ ] AI 助手真实 DeepSeek：报馆藏正确；未配置 key 时明确提示
 - [ ] 预约：在借书可约、重复约 40901；归还后通知红点出现
 - [ ] 看板呈现真实借阅数据（与 SQL 抽查一致）
 - [ ] 401 过期 → 跳 /login；错误码 → toast 映射正确
@@ -686,8 +686,8 @@ v1.0 打 tag 前必须同时满足：
 | ADMIN_INIT_PASSWORD | admin 初始密码（无 admin 时必填，否则启动失败） | v0.3 | 条件必填 |
 | BORROW_DAYS | 借期天数，默认 30 | v0.4 | 否 |
 | ISBN_PROXY_TIMEOUT | ISBN 代理超时 ms，默认 5000 | v0.7 | 否 |
-| GLM_API_KEY | AI 助手（未配置时接口返回明确提示） | v0.7 | 用 AI 则必填 |
-| GLM_MODEL | 覆盖默认模型 `glm-4.6` | v0.7 | 否 |
+| DEEPSEEK_API_KEY | AI 助手（未配置时接口返回明确提示） | v0.7 | 用 AI 则必填 |
+| DEEPSEEK_MODEL | 覆盖默认模型 `deepseek-chat` | v0.7 | 否 |
 | VITE_USE_MOCK | 前端数据源开关：B 阶段 true / 生产必须 false | v0.8 | 构建时 |
 
 ### 6.2 遗留问题与阻塞记录（编码过程中追加，初始为空）
