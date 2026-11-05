@@ -456,14 +456,16 @@ CREATE TABLE notification (
 
 ```sql
 -- 共借推荐（MyBatis 注解内嵌）
-SELECT b2.book_id, COUNT(*) AS cnt
+SELECT r2.book_id, COUNT(*) AS cnt
 FROM borrow_record r1
 JOIN borrow_record r2 ON r1.user_id = r2.user_id AND r1.book_id != r2.book_id
 WHERE r1.book_id = #{id}
-GROUP BY b2.book_id
+GROUP BY r2.book_id
 ORDER BY cnt DESC
 LIMIT 6;
 ```
+
+> 2026-11-06 更正：原文 b2 别名不存在，按语义修正。
 
 **本版强制规范**：
 - 预约通知在还书事务内生成，禁止「还书后再补通知」的异步方案。
