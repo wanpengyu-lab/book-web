@@ -327,10 +327,6 @@
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label>编号 <span class="req">*</span></label>
-                <input type="number" id="formId" placeholder="请输入图书编号">
-            </div>
-            <div class="form-group">
                 <label>书名 <span class="req">*</span></label>
                 <input type="text" id="formTitle" placeholder="请输入书名">
             </div>
@@ -351,15 +347,16 @@
     let currentPage = 1;
     const pageSize = 5;
     let totalPages = 1;
-    let allBooks = [];      // 全量数据（用于搜索过滤）
+    let currentKeyword = '';  // v0.2 服务端搜索：翻页保持搜索条件
+    let allBooks = [];       // 当前页数据（编辑弹窗回显用）
     let displayBooks = [];   // 当前展示的数据
     let editingId = null;    // 正在编辑的图书ID，null=新增模式
 
-    // ===== API 封装 =====
+    // ===== API 封装（v0.2 起统一返回 Result{code,message,data}，解包取 data） =====
     const API = {
-        list: () => fetch('/books').then(r => r.json()),
-        page: (page, size) => fetch(`/books/page?page=${page}&size=${size}`).then(r => r.json()),
-        add: (data) => fetch('/books', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
+        page: (page, size, keyword) => fetch(`/api/books?page=${page}&size=${size}&keyword=${encodeURIComponent(keyword || '')}`).then(r => r.json()),
+        stats: () => fetch('/api/stats').then(r => r.json()),
+        add: (data) => fetch('/api/books', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
         update: (id, data) => fetch(`/books/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
         delete: (id) => fetch(`/books/${id}`, { method: 'DELETE' }).then(r => r.json()),
         borrow: (id) => fetch(`/books/${id}/borrowed`, { method: 'PUT' }).then(r => r.json()),
@@ -373,30 +370,35 @@
         const body = document.getElementById('bookTableBody');
         body.innerHTML = '<tr class="empty-row"><td colspan="5">加载中...</td></tr>';
         try {
-            const res = await API.page(currentPage, pageSize);
-            allBooks = res.list || [];
+            const res = await API.page(currentPage, pageSize, currentKeyword);
+            const data = res.data || {};
+            allBooks = data.list || [];
             displayBooks = [...allBooks];
-            totalPages = Math.ceil(res.total / pageSize) || 1;
-            updateStats(res.total);
+            totalPages = Math.ceil(data.total / pageSize) || 1;
             renderTable();
-            renderPagination(res.total);
+            renderPagination(data.total);
+            loadStats();
         } catch (e) {
             body.innerHTML = '<tr class="empty-row"><td colspan="5">加载失败，请确认后端服务已启动</td></tr>';
         }
     }
 
-    // ===== 搜索 =====
+    // ===== 统计（v0.2：全库数字只来自 /api/stats 的 SQL 聚合，禁止前端累加） =====
+    async function loadStats() {
+        try {
+            const res = await API.stats();
+            const d = res.data || {};
+            document.getElementById('stat-total').textContent = d.total ?? 0;
+            document.getElementById('stat-available').textContent = d.available ?? 0;
+            document.getElementById('stat-borrowed').textContent = d.borrowed ?? 0;
+        } catch (e) { /* 统计失败保持原值 */ }
+    }
+
+    // ===== 搜索（v0.2：服务端完成，前端不做本地过滤） =====
     function handleSearch() {
-        const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-        if (!keyword) {
-            displayBooks = [...allBooks];
-        } else {
-            displayBooks = allBooks.filter(b =>
-                (b.title || '').toLowerCase().includes(keyword) ||
-                (b.author || '').toLowerCase().includes(keyword)
-            );
-        }
-        renderTable();
+        currentKeyword = document.getElementById('searchInput').value.trim();
+        currentPage = 1;
+        loadBooks();
     }
 
     // ===== 渲染表格 =====
@@ -404,8 +406,6 @@
         const body = document.getElementById('bookTableBody');
         if (displayBooks.length === 0) {
             body.innerHTML = '<tr class="empty-row"><td colspan="5">暂无图书数据</td></tr>';
-            // 更新统计为当前页的可用/借出数
-            updateStatsForCurrentPage();
             return;
         }
         body.innerHTML = displayBooks.map(b => `
@@ -430,18 +430,6 @@
                 </td>
             </tr>
         `).join('');
-        updateStatsForCurrentPage();
-    }
-
-    // ===== 统计 =====
-    function updateStats(total) {
-        document.getElementById('stat-total').textContent = total;
-    }
-    function updateStatsForCurrentPage() {
-        const available = displayBooks.filter(b => !b.borrowed).length;
-        const borrowed = displayBooks.filter(b => b.borrowed).length;
-        document.getElementById('stat-available').textContent = available;
-        document.getElementById('stat-borrowed').textContent = borrowed;
     }
 
     // ===== 分页 =====
@@ -464,7 +452,7 @@
     function goPage(page) {
         if (page < 1 || page > totalPages) return;
         currentPage = page;
-        document.getElementById('searchInput').value = '';
+        // v0.2：翻页保持搜索条件（keyword 随请求下传服务端）
         loadBooks();
     }
 
@@ -472,14 +460,14 @@
     async function borrowBook(id) {
         try {
             const res = await API.borrow(id);
-            if (res.success) { showToast('借阅成功', 'success'); loadBooks(); }
+            if (res.code === 0) { showToast('借阅成功', 'success'); loadBooks(); }
             else { showToast(res.message || '借阅失败', 'error'); }
         } catch (e) { showToast('网络错误', 'error'); }
     }
     async function returnBook(id) {
         try {
             const res = await API.return(id);
-            if (res.success) { showToast('还书成功', 'success'); loadBooks(); }
+            if (res.code === 0) { showToast('还书成功', 'success'); loadBooks(); }
             else { showToast(res.message || '还书失败', 'error'); }
         } catch (e) { showToast('网络错误', 'error'); }
     }
@@ -489,7 +477,7 @@
         if (!confirm(`确定要删除《${title}》吗？`)) return;
         try {
             const res = await API.delete(id);
-            if (res.success) { showToast('删除成功', 'success'); loadBooks(); }
+            if (res.code === 0) { showToast('删除成功', 'success'); loadBooks(); }
             else { showToast(res.message || '删除失败', 'error'); }
         } catch (e) { showToast('网络错误', 'error'); }
     }
@@ -498,12 +486,10 @@
     function openAddModal() {
         editingId = null;
         document.getElementById('modalTitle').textContent = '添加图书';
-        document.getElementById('formId').value = '';
-        document.getElementById('formId').disabled = false;
         document.getElementById('formTitle').value = '';
         document.getElementById('formAuthor').value = '';
         document.getElementById('modalOverlay').classList.add('show');
-        document.getElementById('formId').focus();
+        document.getElementById('formTitle').focus();
     }
 
     function openEditModal(id) {
@@ -511,8 +497,6 @@
         if (!book) return;
         editingId = id;
         document.getElementById('modalTitle').textContent = '编辑图书';
-        document.getElementById('formId').value = book.id;
-        document.getElementById('formId').disabled = true;
         document.getElementById('formTitle').value = book.title || '';
         document.getElementById('formAuthor').value = book.author || '';
         document.getElementById('modalOverlay').classList.add('show');
@@ -534,11 +518,10 @@
     });
 
     async function submitForm() {
-        const idVal = document.getElementById('formId').value.trim();
         const titleVal = document.getElementById('formTitle').value.trim();
         const authorVal = document.getElementById('formAuthor').value.trim();
 
-        if (!idVal || !titleVal || !authorVal) {
+        if (!titleVal || !authorVal) {
             showToast('请填写完整信息', 'error');
             return;
         }
@@ -550,11 +533,12 @@
         try {
             let res;
             if (editingId === null) {
-                res = await API.add({ id: parseInt(idVal), title: titleVal, author: authorVal });
+                // v0.2：不再传编号，主键由数据库自增生成
+                res = await API.add({ title: titleVal, author: authorVal });
             } else {
                 res = await API.update(editingId, { title: titleVal, author: authorVal });
             }
-            if (res.success) {
+            if (res.code === 0) {
                 showToast(editingId === null ? '添加成功' : '修改成功', 'success');
                 closeModal();
                 loadBooks();
