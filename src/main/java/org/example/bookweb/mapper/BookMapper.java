@@ -216,4 +216,25 @@ public interface BookMapper {
     List<Integer> recentIdsByCategory(@Param("category") String category,
                                       @Param("id") int id,
                                       @Param("limit") int limit);
+
+    /** v0.7 AI 工具 search_books：keyword（书名/作者 LIKE）与 category（精确）可组合，最多 limit 条 */
+    @Select("""
+            <script>
+            SELECT id,title,author,category,is_borrowed AS borrowed
+            FROM book
+            <where>
+                <if test="keyword != null and keyword != ''">
+                    (title LIKE CONCAT('%',#{keyword},'%') OR author LIKE CONCAT('%',#{keyword},'%'))
+                </if>
+                <if test="category != null and category != ''">
+                    AND category = #{category}
+                </if>
+            </where>
+            ORDER BY id
+            LIMIT #{limit}
+            </script>
+            """)
+    List<Book> searchForAssistant(@Param("keyword") String keyword,
+                                  @Param("category") String category,
+                                  @Param("limit") int limit);
 }

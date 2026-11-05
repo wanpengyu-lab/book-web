@@ -26,6 +26,18 @@ public class Result<T> {
         return r;
     }
 
+    /**
+     * v0.7 外部数据源约定（PRD v0.7 强制规范）：外部调用未命中/未配置/失败不抛 5xx，
+     * 一律 HTTP 200 + code 0 + data:null + 明确 message。
+     */
+    public static <T> Result<T> notice(String message) {
+        Result<T> r = new Result<>();
+        r.code = 0;
+        r.message = message;
+        r.data = null;
+        return r;
+    }
+
     public static <T> Result<T> error(int code, String message) {
         Result<T> r = new Result<>();
         r.code = code;

@@ -1,8 +1,10 @@
 package org.example.bookweb;
 
 import org.example.bookweb.dto.Result;
+import org.example.bookweb.service.AssistantService;
 import org.example.bookweb.service.AuthService;
 import org.example.bookweb.service.BorrowService;
+import org.example.bookweb.service.IsbnService;
 import org.example.bookweb.service.ReservationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +122,34 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ReservationService.DuplicateReservationException.class)
     public ResponseEntity<Result<Void>> handleDuplicateReservation(ReservationService.DuplicateReservationException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Result.error(40901, e.getMessage()));
+    }
+
+    /** v0.7：@Validated 路径参数校验失败（非数字/超长 ISBN 等）-> 400 + 40001 */
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<Result<Void>> handleConstraintViolation(jakarta.validation.ConstraintViolationException e) {
+        String msg = e.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getMessage())
+                .orElse("参数校验失败");
+        return ResponseEntity.badRequest().body(Result.error(40001, msg));
+    }
+
+    /** v0.7：ISBN 外部书源失败/超时 -> 200 + code 0 + data:null + 明确 message（PRD v0.7 禁止 500） */
+    @ExceptionHandler(IsbnService.UpstreamUnavailableException.class)
+    public ResponseEntity<Result<Void>> handleIsbnUpstream(IsbnService.UpstreamUnavailableException e) {
+        return ResponseEntity.ok(Result.notice(e.getMessage()));
+    }
+
+    /** v0.7：未配置 GLM_API_KEY -> 200 + code 0 + data:null +「AI 服务未配置」 */
+    @ExceptionHandler(AssistantService.NotConfiguredException.class)
+    public ResponseEntity<Result<Void>> handleAssistantNotConfigured(AssistantService.NotConfiguredException e) {
+        return ResponseEntity.ok(Result.notice(e.getMessage()));
+    }
+
+    /** v0.7：GLM 调用失败/超时 -> 200 + code 0 + data:null + 明确 message（禁止 500） */
+    @ExceptionHandler(AssistantService.UpstreamUnavailableException.class)
+    public ResponseEntity<Result<Void>> handleAssistantUpstream(AssistantService.UpstreamUnavailableException e) {
+        return ResponseEntity.ok(Result.notice(e.getMessage()));
     }
 
     /** 兜底 -> 50001，响应只回概要，不回堆栈；详情仅记入服务端日志 */

@@ -25,22 +25,25 @@ public interface BorrowRecordMapper {
     /**
      * 记录筛选查询：userId 为空查全部（admin），status 三态——
      * active → status='active'；returned → status='returned'；overdue → 派生 status='active' AND due_at &lt; NOW()。
+     * v0.7（挂账项①）：JOIN book 一次取齐 bookTitle/bookAuthor，前端不得拼请求。
      */
     @Select("""
             <script>
-            SELECT id, book_id AS bookId, user_id AS userId, borrowed_at AS borrowedAt,
-                   due_at AS dueAt, returned_at AS returnedAt, status
-            FROM borrow_record
+            SELECT r.id, r.book_id AS bookId, r.user_id AS userId, r.borrowed_at AS borrowedAt,
+                   r.due_at AS dueAt, r.returned_at AS returnedAt, r.status,
+                   b.title AS bookTitle, b.author AS bookAuthor
+            FROM borrow_record r
+            JOIN book b ON b.id = r.book_id
             <where>
-                <if test="userId != null">user_id = #{userId}</if>
+                <if test="userId != null">r.user_id = #{userId}</if>
                 <if test="status != null and status != ''">
                     <choose>
-                        <when test="status == 'overdue'">AND status = 'active' AND due_at &lt; NOW()</when>
-                        <otherwise>AND status = #{status}</otherwise>
+                        <when test="status == 'overdue'">AND r.status = 'active' AND r.due_at &lt; NOW()</when>
+                        <otherwise>AND r.status = #{status}</otherwise>
                     </choose>
                 </if>
             </where>
-            ORDER BY id DESC
+            ORDER BY r.id DESC
             LIMIT #{size} OFFSET #{offset}
             </script>
             """)

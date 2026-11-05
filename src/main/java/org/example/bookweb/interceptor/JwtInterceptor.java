@@ -84,6 +84,11 @@ public class JwtInterceptor implements HandlerInterceptor {
                 && !"admin".equals(claims.get("role", String.class))) {
             return reject(response, HttpStatus.FORBIDDEN, 40301, "无权限：该操作需要 admin");
         }
+
+        // v0.7：GET /api/isbn/** 需 admin（PRD v0.7；路径不在放行表，登录后在此强制角色）
+        if (path.startsWith("/api/isbn") && !"admin".equals(claims.get("role", String.class))) {
+            return reject(response, HttpStatus.FORBIDDEN, 40301, "无权限：该操作需要 admin");
+        }
         return true;
     }
 
