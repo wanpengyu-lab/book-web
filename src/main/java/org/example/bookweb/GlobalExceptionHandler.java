@@ -14,6 +14,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理（PRD 3.1 错误码表）：
@@ -52,6 +53,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Result<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         return ResponseEntity.badRequest().body(Result.error(40001, "请求方法不支持"));
+    }
+
+    /** v0.4：无映射的路径/资源（如 GET /api/nonexistent）-> 404 + 40401，不再落入 50001 兜底 */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Result<Void>> handleNoResource(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.error(40401, "资源不存在"));
     }
 
     /** 唯一键冲突（重复编号等业务冲突）-> 40901 */
