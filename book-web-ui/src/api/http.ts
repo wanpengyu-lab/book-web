@@ -59,7 +59,12 @@ export async function request<T>(method: string, path: string, options: RequestO
   if (result.code === 0) return result.data as T
 
   if (result.code === 40101) {
+    // v0.10 修复（E2E 预检）：除 localStorage 外必须同步重置 pinia 会话状态，
+    // 否则 isLoggedIn 仍为 true，登录页守卫会把用户弹回 /（僵尸登录态），401 落不到 /login。
+    // logout() 为纯前端清理（清 store + clearSession），动态 import 避免与 stores 的模块循环。
     clearSession()
+    const { useUserStore } = await import('@/stores/user')
+    useUserStore().logout()
     const { default: router } = await import('@/router')
     void router.push('/login')
   }

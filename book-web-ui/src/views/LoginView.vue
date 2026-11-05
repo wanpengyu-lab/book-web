@@ -6,6 +6,7 @@
 import { ref, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/types'
+import { USE_MOCK } from '@/api/http'
 import Button from '@/components/ui/button/Button.vue'
 import Card from '@/components/ui/card/Card.vue'
 import CardContent from '@/components/ui/card/CardContent.vue'
@@ -73,7 +74,8 @@ async function onSubmit(): Promise<void> {
           <Button type="submit" class="w-full" :disabled="submitting">
             {{ submitting ? '登录中…' : '登录' }}
           </Button>
-          <p class="text-center text-xs text-muted-foreground">
+          <!-- v0.10：mock 提示仅离线 mock 模式显示，真实 API 模式不得误导（E2E 预检修复） -->
+          <p v-if="USE_MOCK" class="text-center text-xs text-muted-foreground">
             mock 演示：输入用户名 admin / zhangsan / lisi，密码任意即可进入
           </p>
         </form>

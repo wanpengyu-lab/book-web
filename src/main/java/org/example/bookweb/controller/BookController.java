@@ -14,24 +14,17 @@ import org.example.bookweb.service.BorrowService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
+/**
+ * 图书接口（v0.10）：仅保留 /api 前缀端点；旧无前缀端点（/books、/books/page、
+ * /books/{id}、/books/{id}/borrowed、/books/{id}/return）已按 PRD v0.10 删除。
+ */
 @RestController
 @RequiredArgsConstructor
 public class BookController {
 
     private final BookService bookService;
     private final BorrowService borrowService;
-
-    @GetMapping("/books")
-    public Result<List<Book>> listBooks() {
-        return Result.success(bookService.getAllBooks());
-    }
-
-    @GetMapping("/books/{id}")
-    public Result<Book> getBook(@PathVariable int id) {
-        return Result.success(bookService.getBookById(id));
-    }
 
     /**
      * v0.2 统一列表（修 G3）：keyword 匹配 title/author（LIKE 两端 %），服务端完成搜索+分页；
@@ -98,44 +91,5 @@ public class BookController {
     @PutMapping("/api/books/{id}/return")
     public Result<Boolean> apiReturn(@PathVariable int id, HttpServletRequest request) {
         return Result.success(borrowService.returnBook(id, (Integer) request.getAttribute("userId")));
-    }
-
-    /** 旧端点：已被 /api/books 取代，保留至 v0.10 统一删除（PRD 2.1） */
-    @Deprecated
-    @GetMapping("/books/page")
-    public Result<Map<String, Object>> pageBooks(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int size) {
-        return Result.success(bookService.getBooksPage(page, size));
-    }
-
-    /** 旧端点：保留至 v0.10 统一删除（PRD 2.1），行为随 v0.2 自增改造不再使用 id；v0.5 起同样接收扩展字段 */
-    @PostMapping("/books")
-    public Result<Boolean> addBook(@Valid @RequestBody AddBookRequest req) {
-        return Result.success(bookService.addBook(req));
-    }
-
-    @PutMapping("/books/{id}")
-    public Result<Boolean> updateBook(@PathVariable int id, @Valid @RequestBody UpdateBookRequest req) {
-        return Result.success(bookService.updateBook(id, req));
-    }
-
-    @DeleteMapping("/books/{id}")
-    public Result<Boolean> deleteBook(@PathVariable int id) {
-        return Result.success(bookService.deleteBook(id));
-    }
-
-    /** 旧端点：已被 PUT /api/books/{id}/borrow（登录用户 + 借阅记录）取代，保留至 v0.10 统一删除（PRD v0.4） */
-    @Deprecated
-    @PutMapping("/books/{id}/borrowed")
-    public Result<Boolean> borrowedBook(@PathVariable int id) {
-        return Result.success(bookService.borrowBook(id));
-    }
-
-    /** 旧端点：已被 PUT /api/books/{id}/return（登录用户 + 借阅记录）取代，保留至 v0.10 统一删除（PRD v0.4） */
-    @Deprecated
-    @PutMapping("/books/{id}/return")
-    public Result<Boolean> returnBook(@PathVariable int id) {
-        return Result.success(bookService.returnBook(id));
     }
 }

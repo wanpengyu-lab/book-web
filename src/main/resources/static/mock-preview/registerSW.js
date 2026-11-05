@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/mock-preview/sw.js', { scope: '/mock-preview/' })})}

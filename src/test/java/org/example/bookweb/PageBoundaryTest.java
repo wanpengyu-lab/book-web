@@ -8,16 +8,19 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.Collections;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * v0.1 分页边界单测（不依赖数据库，mock BookMapper 捕获实际下推参数）。
- * 覆盖：page=0 / 负数 / size=0 / size>100。
+ * 分页边界单测（不依赖数据库，mock BookMapper 捕获实际下推参数）。
+ * v0.1 覆盖 page=0 / 负数 / size=0 / size>100；
+ * v0.10：旧无前缀端点 /books/page 与 getBooksPage 已删除（PRD v0.10 删除清单），
+ * 同一套钳制逻辑在 /api/books 的 searchBooks 中，断言迁移到该口径（keyword/category 传空）。
  */
 class PageBoundaryTest {
 
@@ -28,26 +31,23 @@ class PageBoundaryTest {
     void setUp() {
         bookMapper = mock(BookMapper.class);
         bookService = new BookService(bookMapper);
-        when(bookMapper.countAll()).thenReturn(12);
-        when(bookMapper.findPage(org.mockito.ArgumentMatchers.anyInt(),
-                org.mockito.ArgumentMatchers.anyInt()))
+        when(bookMapper.countByKeyword(anyString())).thenReturn(12);
+        when(bookMapper.search(anyString(), anyInt(), anyInt()))
                 .thenReturn(Collections.<Book>emptyList());
     }
 
-    private Map<String, Object> pageAndCapture(int page, int size, ArgumentCaptor<Integer> sizeCap,
-                                               ArgumentCaptor<Integer> offsetCap) {
-        Map<String, Object> result = bookService.getBooksPage(page, size);
-        verify(bookMapper).findPage(sizeCap.capture(), offsetCap.capture());
-        return result;
+    private void pageAndCapture(int page, int size, ArgumentCaptor<Integer> sizeCap,
+                                ArgumentCaptor<Integer> offsetCap) {
+        bookService.searchBooks(null, null, page, size);
+        verify(bookMapper).search(anyString(), sizeCap.capture(), offsetCap.capture());
     }
 
     @Test
     void pageZeroClampedToOne() {
         ArgumentCaptor<Integer> sizeCap = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> offsetCap = ArgumentCaptor.forClass(Integer.class);
-        Map<String, Object> result = pageAndCapture(0, 5, sizeCap, offsetCap);
+        pageAndCapture(0, 5, sizeCap, offsetCap);
 
-        assertEquals(1, result.get("page"));
         assertEquals(0, offsetCap.getValue());
         assertEquals(5, sizeCap.getValue());
     }
@@ -56,9 +56,8 @@ class PageBoundaryTest {
     void negativePageClampedToOne() {
         ArgumentCaptor<Integer> sizeCap = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> offsetCap = ArgumentCaptor.forClass(Integer.class);
-        Map<String, Object> result = pageAndCapture(-3, 5, sizeCap, offsetCap);
+        pageAndCapture(-3, 5, sizeCap, offsetCap);
 
-        assertEquals(1, result.get("page"));
         assertEquals(0, offsetCap.getValue());
         assertEquals(5, sizeCap.getValue());
     }
@@ -67,9 +66,8 @@ class PageBoundaryTest {
     void sizeZeroClampedToDefaultFive() {
         ArgumentCaptor<Integer> sizeCap = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> offsetCap = ArgumentCaptor.forClass(Integer.class);
-        Map<String, Object> result = pageAndCapture(1, 0, sizeCap, offsetCap);
+        pageAndCapture(1, 0, sizeCap, offsetCap);
 
-        assertEquals(5, result.get("size"));
         assertEquals(5, sizeCap.getValue());
         assertEquals(0, offsetCap.getValue());
     }
@@ -78,9 +76,8 @@ class PageBoundaryTest {
     void sizeAbove100ClampedTo100() {
         ArgumentCaptor<Integer> sizeCap = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Integer> offsetCap = ArgumentCaptor.forClass(Integer.class);
-        Map<String, Object> result = pageAndCapture(1, 500, sizeCap, offsetCap);
+        pageAndCapture(1, 500, sizeCap, offsetCap);
 
-        assertEquals(100, result.get("size"));
         assertEquals(100, sizeCap.getValue());
         assertEquals(0, offsetCap.getValue());
     }

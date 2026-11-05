@@ -8,6 +8,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import * as assistantApi from '@/api/assistant'
 import * as booksApi from '@/api/books'
+import { USE_MOCK } from '@/api/http'
 import { ApiError, type Book } from '@/api/types'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
@@ -153,7 +154,8 @@ function scrollToBottom(): void {
       <header class="flex items-center gap-2 border-b border-border px-4 py-3">
         <SparklesIcon class="size-4 text-primary" />
         <h2 class="text-sm font-semibold">AI 馆藏助手</h2>
-        <span class="ml-auto rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">mock</span>
+        <!-- v0.10：mock 徽标仅离线 mock 模式显示，真实 API 模式不得误导（E2E 预检修复） -->
+        <span v-if="USE_MOCK" class="ml-auto rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">mock</span>
       </header>
 
       <!-- 消息区 -->

@@ -13,13 +13,6 @@ public interface BookMapper {
     @Select("""
             SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
                    cover_url AS coverUrl,description,total_copies AS totalCopies
-            FROM book
-            """)
-    List<Book> findAll();
-
-    @Select("""
-            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
-                   cover_url AS coverUrl,description,total_copies AS totalCopies
             FROM book WHERE id = #{id}
             """)
     Book findById(@Param("id") int id);
@@ -60,13 +53,6 @@ public interface BookMapper {
 
     @Select("SELECT COUNT(*) FROM book")
     int countAll();
-
-    @Select("""
-            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
-                   cover_url AS coverUrl,description,total_copies AS totalCopies
-            FROM book LIMIT #{size} OFFSET #{offset}
-            """)
-    List<Book> findPage(@Param("size") int size, @Param("offset") int offset);
 
     /**
      * v0.2 服务端搜索（修 G3）：keyword 同时匹配 title/author（LIKE 两端 %）；

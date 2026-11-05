@@ -1,0 +1,10 @@
+# v0.10 部署配套（不改 docker-compose.yml 本身）：
+# compose 原文件只传 SPRING_DATASOURCE_*，而应用启动必需 JWT_SECRET 与
+# ADMIN_INIT_PASSWORD（库中无 admin 时启动失败），AI 助手按需 DEEPSEEK_API_KEY。
+# 本文件只做环境变量透传（值全部来自执行环境/CI，仓库内零明文凭据，PRD 3.3）。
+services:
+  app:
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?必须在环境中提供 JWT_SECRET}
+      ADMIN_INIT_PASSWORD: ${ADMIN_INIT_PASSWORD:?必须在环境中提供 ADMIN_INIT_PASSWORD}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}

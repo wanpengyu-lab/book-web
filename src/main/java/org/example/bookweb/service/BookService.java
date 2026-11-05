@@ -11,9 +11,7 @@ import org.example.bookweb.mapper.BookMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,14 +21,6 @@ public class BookService {
     public static final String DEFAULT_CATEGORY = "未分类";
 
     private final BookMapper bookMapper;
-
-    public List<Book> getAllBooks() {
-        return bookMapper.findAll();
-    }
-
-    public Book getBookById(int id) {
-        return bookMapper.findById(id);
-    }
 
     /**
      * v0.5：新增携带扩展字段。category 缺省归一化为「未分类」，total_copies 缺省 1，
@@ -51,30 +41,6 @@ public class BookService {
 
     public boolean deleteBook(int id) {
         return bookMapper.delete(id);
-    }
-
-    public boolean borrowBook(int id) {
-        return bookMapper.setBorrowed(true, id);
-    }
-
-    public boolean returnBook(int id) {
-        return bookMapper.setBorrowed(false, id);
-    }
-
-    public Map<String, Object> getBooksPage(int page, int size) {
-        if (page < 1) page = 1;
-        if (size < 1) size = 5;
-        if (size > 100) size = 100;
-        int offset = (page - 1) * size;
-        List<Book> list = bookMapper.findPage(size, offset);
-        int total = bookMapper.countAll();
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("total", total);
-        result.put("page", page);
-        result.put("size", size);
-        result.put("list", list);
-        return result;
     }
 
     /**
