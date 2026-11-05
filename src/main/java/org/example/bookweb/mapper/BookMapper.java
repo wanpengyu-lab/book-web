@@ -1,26 +1,52 @@
 package org.example.bookweb.mapper;
 
 import org.apache.ibatis.annotations.*;
+import org.example.bookweb.dto.DashboardResponse;
+import org.example.bookweb.dto.StatsResponse;
 import org.example.bookweb.entity.Book;
+import org.example.bookweb.entity.BorrowRecord;
 
 import java.util.List;
 
 @Mapper
 public interface BookMapper {
-    @Select("SELECT id,title,author,book.is_borrowed AS borrowed FROM book ")
+    @Select("""
+            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
+                   cover_url AS coverUrl,description,total_copies AS totalCopies
+            FROM book
+            """)
     List<Book> findAll();
 
-    @Select("SELECT id,title,author,book.is_borrowed AS borrowed FROM book WHERE id = #{id}")
+    @Select("""
+            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
+                   cover_url AS coverUrl,description,total_copies AS totalCopies
+            FROM book WHERE id = #{id}
+            """)
     Book findById(@Param("id") int id);
 
-    @Insert("INSERT INTO book(title,author,is_borrowed) VALUES (#{title},#{author},0)")
-    boolean add(@Param("title") String title, @Param("author") String author);
+    /** v0.5：新增/更新携带扩展字段；category/total_copies 的默认值由服务层归一化后传入 */
+    @Insert("""
+            INSERT INTO book(title,author,is_borrowed,category,publisher,isbn,cover_url,description,total_copies)
+            VALUES (#{title},#{author},0,#{category},#{publisher},#{isbn},#{coverUrl},#{description},#{totalCopies})
+            """)
+    boolean add(@Param("title") String title, @Param("author") String author,
+                @Param("category") String category, @Param("publisher") String publisher,
+                @Param("isbn") String isbn, @Param("coverUrl") String coverUrl,
+                @Param("description") String description, @Param("totalCopies") int totalCopies);
 
     @Delete("DELETE FROM book WHERE id = #{id}")
     boolean delete(@Param("id") int id);
 
-    @Update("UPDATE book SET title = #{title},author = #{author} WHERE id = #{id}")
-    boolean update(@Param("id") int id, @Param("title") String title, @Param("author") String author);
+    @Update("""
+            UPDATE book SET title = #{title},author = #{author},category = #{category},
+                   publisher = #{publisher},isbn = #{isbn},cover_url = #{coverUrl},
+                   description = #{description},total_copies = #{totalCopies}
+            WHERE id = #{id}
+            """)
+    boolean update(@Param("id") int id, @Param("title") String title, @Param("author") String author,
+                   @Param("category") String category, @Param("publisher") String publisher,
+                   @Param("isbn") String isbn, @Param("coverUrl") String coverUrl,
+                   @Param("description") String description, @Param("totalCopies") int totalCopies);
 
     @Update("UPDATE book SET is_borrowed = #{is_borrowed} WHERE id = #{id}")
     boolean setBorrowed(@Param("is_borrowed") boolean is_borrowed, @Param("id") int id);
@@ -35,7 +61,11 @@ public interface BookMapper {
     @Select("SELECT COUNT(*) FROM book")
     int countAll();
 
-    @Select("SELECT id,title,author,is_borrowed AS borrowed FROM book LIMIT #{size} OFFSET #{offset}")
+    @Select("""
+            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
+                   cover_url AS coverUrl,description,total_copies AS totalCopies
+            FROM book LIMIT #{size} OFFSET #{offset}
+            """)
     List<Book> findPage(@Param("size") int size, @Param("offset") int offset);
 
     /**
@@ -44,7 +74,9 @@ public interface BookMapper {
      */
     @Select("""
             <script>
-            SELECT id,title,author,is_borrowed AS borrowed FROM book
+            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
+                   cover_url AS coverUrl,description,total_copies AS totalCopies
+            FROM book
             <where>
                 <if test="keyword != null and keyword != ''">
                     (title LIKE CONCAT('%',#{keyword},'%') OR author LIKE CONCAT('%',#{keyword},'%'))
@@ -69,7 +101,93 @@ public interface BookMapper {
             """)
     int countByKeyword(@Param("keyword") String keyword);
 
-    /** v0.2 统计聚合（修 G2）：在馆/在借数量，全库口径。分类统计 SQL（GROUP BY category）待 v0.5 字段落地后补充 */
+    /**
+     * v0.5 分类精确过滤（PRD 交付物 findByCategory）：category 精确匹配，
+     * keyword 可选（同时携带时组合过滤，B 阶段列表页会同传两者）。ORDER BY id 保证翻页顺序稳定。
+     */
+    @Select("""
+            <script>
+            SELECT id,title,author,is_borrowed AS borrowed,category,publisher,isbn,
+                   cover_url AS coverUrl,description,total_copies AS totalCopies
+            FROM book
+            <where>
+                category = #{category}
+                <if test="keyword != null and keyword != ''">
+                    AND (title LIKE CONCAT('%',#{keyword},'%') OR author LIKE CONCAT('%',#{keyword},'%'))
+                </if>
+            </where>
+            ORDER BY id
+            LIMIT #{size} OFFSET #{offset}
+            </script>
+            """)
+    List<Book> findByCategory(@Param("category") String category, @Param("keyword") String keyword,
+                              @Param("size") int size, @Param("offset") int offset);
+
+    /** 与 findByCategory 同一过滤口径的计数（total 为筛选后全量） */
+    @Select("""
+            <script>
+            SELECT COUNT(*) FROM book
+            <where>
+                category = #{category}
+                <if test="keyword != null and keyword != ''">
+                    AND (title LIKE CONCAT('%',#{keyword},'%') OR author LIKE CONCAT('%',#{keyword},'%'))
+                </if>
+            </where>
+            </script>
+            """)
+    int countByCategory(@Param("category") String category, @Param("keyword") String keyword);
+
+    /** v0.5 统计聚合：在馆/在借数量，全库口径 */
     @Select("SELECT COUNT(*) FROM book WHERE is_borrowed = #{borrowed}")
     int countByBorrowed(@Param("borrowed") boolean borrowed);
+
+    /** v0.5 真实分类统计：GROUP BY category 按 count 降序（替换 v0.2「全部」占位） */
+    @Select("""
+            SELECT category AS name, COUNT(*) AS `count`
+            FROM book
+            GROUP BY category
+            ORDER BY `count` DESC, name
+            """)
+    List<StatsResponse.CategoryCount> categoryCounts();
+
+    /** v0.5 详情聚合：某书最近 limit 条借阅记录（新→旧），一次请求随详情取齐 */
+    @Select("""
+            SELECT id, book_id AS bookId, user_id AS userId, borrowed_at AS borrowedAt,
+                   due_at AS dueAt, returned_at AS returnedAt, status
+            FROM borrow_record
+            WHERE book_id = #{bookId}
+            ORDER BY id DESC
+            LIMIT #{limit}
+            """)
+    List<BorrowRecord> recentRecords(@Param("bookId") int bookId, @Param("limit") int limit);
+
+    /** v0.5 看板·趋势：近 30 天（含今天）每日借出量，只返回有借出的日期 */
+    @Select("""
+            SELECT DATE_FORMAT(borrowed_at, '%Y-%m-%d') AS date, COUNT(*) AS `count`
+            FROM borrow_record
+            WHERE borrowed_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+            GROUP BY DATE_FORMAT(borrowed_at, '%Y-%m-%d')
+            ORDER BY date
+            """)
+    List<DashboardResponse.TrendPoint> trend();
+
+    /** v0.5 看板·分类占比：各分类藏书量，value 降序 */
+    @Select("""
+            SELECT category AS name, COUNT(*) AS value
+            FROM book
+            GROUP BY category
+            ORDER BY value DESC, name
+            """)
+    List<DashboardResponse.CategoryRatio> categoryRatio();
+
+    /** v0.5 看板·借阅排行：按借阅次数前 10（含已归还，借出即一次借阅行为） */
+    @Select("""
+            SELECT b.id, b.title, b.author, COUNT(*) AS `count`
+            FROM borrow_record r
+            JOIN book b ON b.id = r.book_id
+            GROUP BY b.id, b.title, b.author
+            ORDER BY `count` DESC, b.id
+            LIMIT 10
+            """)
+    List<DashboardResponse.TopBorrowed> topBorrowed();
 }

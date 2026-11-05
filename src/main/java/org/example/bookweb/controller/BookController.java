@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.bookweb.dto.AddBookRequest;
+import org.example.bookweb.dto.BookDetailResponse;
 import org.example.bookweb.dto.BookPageResponse;
 import org.example.bookweb.dto.Result;
 import org.example.bookweb.dto.UpdateBookRequest;
@@ -34,38 +35,41 @@ public class BookController {
 
     /**
      * v0.2 统一列表（修 G3）：keyword 匹配 title/author（LIKE 两端 %），服务端完成搜索+分页；
-     * 翻页时前端携带同一 keyword 即可保持搜索条件。开放接口（v0.3 起在拦截器放行表内）。
+     * v0.5：+ category 精确过滤，可与 keyword 组合；翻页时前端携带同一组条件即可保持筛选。
+     * 开放接口（v0.3 起在拦截器放行表内）。
      */
     @GetMapping("/api/books")
     public Result<BookPageResponse> apiListBooks(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "5") int size) {
-        return Result.success(bookService.searchBooks(keyword, page, size));
+        return Result.success(bookService.searchBooks(keyword, category, page, size));
     }
 
     /**
      * v0.2 起不再接收 id（修 G5）：主键由数据库 AUTO_INCREMENT 生成（V0_2__book_auto_increment.sql）。
      * v0.3 起 POST/PUT/DELETE /api/books/** 由 JwtInterceptor 强制 admin（PRD v0.3 拦截规则）。
+     * v0.5：接收扩展字段（category/publisher/isbn/coverUrl/description/totalCopies，@Valid 校验）。
      */
     @PostMapping("/api/books")
     public Result<Boolean> apiAddBook(@Valid @RequestBody AddBookRequest req) {
-        return Result.success(bookService.addBook(req.getTitle(), req.getAuthor()));
+        return Result.success(bookService.addBook(req));
     }
 
     /**
-     * v0.3：详情接口。GET 在 PRD 放行表内（「GET /api/books（含详情）」），
-     * 行为暂与旧端点一致，v0.5 起改为聚合响应。
+     * v0.5：聚合详情。GET 在 PRD 放行表内（「GET /api/books（含详情）」）；
+     * 全量字段 + recentRecords(≤5) + relatedIds 一次请求取齐（PRD v0.5 强制规范）。
      */
     @GetMapping("/api/books/{id}")
-    public Result<Book> apiGetBook(@PathVariable int id) {
-        return Result.success(bookService.getBookById(id));
+    public Result<BookDetailResponse> apiGetBook(@PathVariable int id) {
+        return Result.success(bookService.getBookDetail(id));
     }
 
-    /** v0.3：编辑接口（admin），行为与旧端点一致，v0.5 扩展新字段 */
+    /** v0.5：编辑接口（admin）携带扩展字段（category/publisher/isbn/coverUrl/description/totalCopies） */
     @PutMapping("/api/books/{id}")
     public Result<Boolean> apiUpdateBook(@PathVariable int id, @Valid @RequestBody UpdateBookRequest req) {
-        return Result.success(bookService.updateBook(id, req.getTitle(), req.getAuthor()));
+        return Result.success(bookService.updateBook(id, req));
     }
 
     /** v0.3：删除接口（admin），行为与旧端点一致 */
@@ -95,15 +99,15 @@ public class BookController {
         return Result.success(bookService.getBooksPage(page, size));
     }
 
-    /** 旧端点：保留至 v0.10 统一删除（PRD 2.1），行为随 v0.2 自增改造不再使用 id */
+    /** 旧端点：保留至 v0.10 统一删除（PRD 2.1），行为随 v0.2 自增改造不再使用 id；v0.5 起同样接收扩展字段 */
     @PostMapping("/books")
     public Result<Boolean> addBook(@Valid @RequestBody AddBookRequest req) {
-        return Result.success(bookService.addBook(req.getTitle(), req.getAuthor()));
+        return Result.success(bookService.addBook(req));
     }
 
     @PutMapping("/books/{id}")
     public Result<Boolean> updateBook(@PathVariable int id, @Valid @RequestBody UpdateBookRequest req) {
-        return Result.success(bookService.updateBook(id, req.getTitle(), req.getAuthor()));
+        return Result.success(bookService.updateBook(id, req));
     }
 
     @DeleteMapping("/books/{id}")

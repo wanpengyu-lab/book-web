@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -40,13 +41,14 @@ class StatsConsistencyTest {
                 org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(Collections.<Book>emptyList());
         when(bookMapper.countByKeyword(org.mockito.ArgumentMatchers.anyString())).thenReturn(TOTAL);
+        when(bookMapper.categoryCounts()).thenReturn(java.util.List.<StatsResponse.CategoryCount>of());
     }
 
     @Test
     void statsStayWholeLibraryAcrossAllPages() {
         // size=5 翻页 1→2→3，每页统计均为全库真值而非当前页计数
         for (int page = 1; page <= 3; page++) {
-            BookPageResponse pageData = bookService.searchBooks("", page, 5);
+            BookPageResponse pageData = bookService.searchBooks("", null, page, 5);
             assertEquals(page, pageData.getPage());
 
             StatsResponse stats = bookService.getStats();
@@ -67,7 +69,7 @@ class StatsConsistencyTest {
                 org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(pageAllBorrowed);
 
-        bookService.searchBooks("", 1, 5);
+        bookService.searchBooks("", null, 1, 5);
 
         StatsResponse stats = bookService.getStats();
         assertEquals(AVAILABLE, stats.getAvailable(), "统计不得来自当前页累加");
@@ -75,12 +77,21 @@ class StatsConsistencyTest {
     }
 
     @Test
-    void categoriesPlaceholderUntilV05() {
-        // v0.5 切换真实分类：当前为「全部」占位（PRD v0.2 交付物约定）
+    void categoriesRealGroupBySinceV05() {
+        // v0.5：categories 切换真实分类统计（GROUP BY category 按 count 降序），
+        // 替换 v0.2 的「全部」占位；服务层原样透传 SQL 聚合结果
+        StatsResponse.CategoryCount keHuan = StatsResponse.CategoryCount.of("科幻", 5);
+        StatsResponse.CategoryCount unclassified = StatsResponse.CategoryCount.of("未分类", 7);
+        when(bookMapper.categoryCounts()).thenReturn(java.util.List.of(keHuan, unclassified));
+
         StatsResponse stats = bookService.getStats();
-        assertEquals(1, stats.getCategories().size());
-        assertEquals("全部", stats.getCategories().get(0).getName());
-        assertEquals(TOTAL, stats.getCategories().get(0).getCount());
+        assertEquals(2, stats.getCategories().size());
+        assertEquals("科幻", stats.getCategories().get(0).getName());
+        assertEquals(5, stats.getCategories().get(0).getCount());
+        assertEquals("未分类", stats.getCategories().get(1).getName());
+        assertEquals(7, stats.getCategories().get(1).getCount());
+        assertTrue(stats.getCategories().stream().noneMatch(c -> "全部".equals(c.getName())),
+                "「全部」占位应在 v0.5 移除");
     }
 
     private Book book(int id, boolean borrowed) {

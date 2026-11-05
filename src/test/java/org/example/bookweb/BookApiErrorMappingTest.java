@@ -1,6 +1,8 @@
 package org.example.bookweb;
 
 import org.example.bookweb.controller.BookController;
+import org.example.bookweb.dto.AddBookRequest;
+import org.example.bookweb.dto.UpdateBookRequest;
 import org.example.bookweb.service.BookService;
 import org.example.bookweb.service.BorrowService;
 import org.junit.jupiter.api.Test;
@@ -56,7 +58,7 @@ class BookApiErrorMappingTest {
 
     @Test
     void duplicateKeyReturns409AndCode40901() throws Exception {
-        Mockito.when(bookService.addBook(Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(bookService.addBook(Mockito.any(AddBookRequest.class)))
                 .thenThrow(new DuplicateKeyException("Duplicate entry for key 'PRIMARY'"));
         mockMvc.perform(post("/books")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -68,7 +70,7 @@ class BookApiErrorMappingTest {
 
     @Test
     void updateReadsIdFromPathOnly() throws Exception {
-        Mockito.when(bookService.updateBook(Mockito.anyInt(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(bookService.updateBook(Mockito.anyInt(), Mockito.any(UpdateBookRequest.class)))
                 .thenReturn(true);
         // body 无 id，也不接受 body 携带 id（未知字段被忽略，不影响校验）
         mockMvc.perform(put("/books/7")
@@ -77,6 +79,10 @@ class BookApiErrorMappingTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
         // 路径 id 7 必须原样下传，body 里的 99 不得覆盖
-        Mockito.verify(bookService).updateBook(Mockito.eq(7), Mockito.eq("围城"), Mockito.eq("钱钟书"));
+        org.mockito.ArgumentCaptor<UpdateBookRequest> cap =
+                org.mockito.ArgumentCaptor.forClass(UpdateBookRequest.class);
+        Mockito.verify(bookService).updateBook(Mockito.eq(7), cap.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("围城", cap.getValue().getTitle());
+        org.junit.jupiter.api.Assertions.assertEquals("钱钟书", cap.getValue().getAuthor());
     }
 }

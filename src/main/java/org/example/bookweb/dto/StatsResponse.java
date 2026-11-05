@@ -14,7 +14,7 @@ public class StatsResponse {
     private int total;
     private int available;
     private int borrowed;
-    /** 按 count 降序；v0.2 为「全部」占位，v0.5 category 字段落地后切换真实分类统计 */
+    /** 按 count 降序；v0.5 起为 GROUP BY category 的真实分类统计 */
     private List<CategoryCount> categories;
 
     @Data

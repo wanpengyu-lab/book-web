@@ -37,6 +37,10 @@ class ApiMethodMappingTest {
     @MockitoBean
     private BookService bookService;
 
+    // v0.5：StatsController 增加 /api/dashboard，依赖 DashboardService（slice 内需注入 mock）
+    @MockitoBean
+    private org.example.bookweb.service.DashboardService dashboardService;
+
     @Test
     void postToGetOnlyEndpointReturns400And40001() throws Exception {
         mockMvc.perform(post("/api/stats")

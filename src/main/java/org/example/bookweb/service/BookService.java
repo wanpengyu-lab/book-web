@@ -1,10 +1,14 @@
 package org.example.bookweb.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.bookweb.dto.AddBookRequest;
+import org.example.bookweb.dto.BookDetailResponse;
 import org.example.bookweb.dto.BookPageResponse;
 import org.example.bookweb.dto.StatsResponse;
+import org.example.bookweb.dto.UpdateBookRequest;
 import org.example.bookweb.entity.Book;
 import org.example.bookweb.mapper.BookMapper;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -14,6 +18,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class BookService {
+
+    /** 旧数据/缺省分类（PRD v0.5：旧数据 category 显示「未分类」） */
+    public static final String DEFAULT_CATEGORY = "未分类";
 
     private final BookMapper bookMapper;
 
@@ -25,15 +32,21 @@ public class BookService {
         return bookMapper.findById(id);
     }
 
-    public boolean addBook(String title, String author) {
-        // 业务规则的家：比如以后加"书名不能重复先查重"，写在这
-        // id 由数据库 AUTO_INCREMENT 生成，服务层不再接收 id
-        return bookMapper.add(title, author);
+    /**
+     * v0.5：新增携带扩展字段。category 缺省归一化为「未分类」，total_copies 缺省 1，
+     * 保证 NOT NULL 列不因请求缺字段而 500。
+     */
+    public boolean addBook(AddBookRequest req) {
+        return bookMapper.add(req.getTitle(), req.getAuthor(),
+                normalizeCategory(req.getCategory()), req.getPublisher(), req.getIsbn(),
+                req.getCoverUrl(), req.getDescription(), normalizeCopies(req.getTotalCopies()));
     }
 
-    public boolean updateBook(int id, String title, String author) {
+    public boolean updateBook(int id, UpdateBookRequest req) {
         // id 只来自 Controller 传出的路径变量，请求体不参与
-        return bookMapper.update(id, title, author);
+        return bookMapper.update(id, req.getTitle(), req.getAuthor(),
+                normalizeCategory(req.getCategory()), req.getPublisher(), req.getIsbn(),
+                req.getCoverUrl(), req.getDescription(), normalizeCopies(req.getTotalCopies()));
     }
 
     public boolean deleteBook(int id) {
@@ -65,22 +78,47 @@ public class BookService {
     }
 
     /**
-     * v0.2 服务端搜索（修 G3）：keyword 匹配 title/author（LIKE 两端 %），空/空白 keyword 不过滤；
-     * total 与 list 同口径（countByKeyword），翻页携带同一 keyword 即保持搜索条件。size 上限 100。
+     * v0.2 服务端搜索（修 G3）+ v0.5 分类精确过滤：keyword 匹配 title/author（LIKE 两端 %），
+     * category 精确匹配；两者可组合。category 非空走 findByCategory 口径，否则走 keyword 口径；
+     * total 与 list 同口径，翻页携带同一组条件即保持筛选。size 上限 100。
      */
-    public BookPageResponse searchBooks(String keyword, int page, int size) {
+    public BookPageResponse searchBooks(String keyword, String category, int page, int size) {
         if (page < 1) page = 1;
         if (size < 1) size = 5;
         if (size > 100) size = 100;
         String kw = keyword == null ? "" : keyword.trim();
+        String cat = category == null ? "" : category.trim();
         int offset = (page - 1) * size;
+        if (!cat.isEmpty()) {
+            List<Book> list = bookMapper.findByCategory(cat, kw, size, offset);
+            int total = bookMapper.countByCategory(cat, kw);
+            return BookPageResponse.of(total, page, size, list);
+        }
         List<Book> list = bookMapper.search(kw, size, offset);
         int total = bookMapper.countByKeyword(kw);
         return BookPageResponse.of(total, page, size, list);
     }
 
     /**
+     * v0.5 详情聚合：全量字段 + recentRecords（最近 5 条，新→旧）+ relatedIds 一次请求取齐（PRD v0.5 强制规范）。
+     */
+    public BookDetailResponse getBookDetail(int id) {
+        Book book = bookMapper.findById(id);
+        if (book == null) {
+            // 与 v0.3 详情行为一致：书不存在返回 data:null，不引入新错误码
+            return null;
+        }
+        BookDetailResponse detail = new BookDetailResponse();
+        BeanUtils.copyProperties(book, detail);
+        detail.setRecentRecords(bookMapper.recentRecords(id, 5));
+        // v0.6 接入共借：本版固定空数组占位（PRD v0.5）
+        detail.setRelatedIds(List.of());
+        return detail;
+    }
+
+    /**
      * v0.2 全库统计（修 G2）：三数字全部来自 SQL 聚合，与任何分页/当前页内容无关。
+     * v0.5：categories 切换真实分类统计（GROUP BY category，按 count 降序）。
      */
     public StatsResponse getStats() {
         int total = bookMapper.countAll();
@@ -88,8 +126,18 @@ public class BookService {
         stats.setTotal(total);
         stats.setAvailable(bookMapper.countByBorrowed(false));
         stats.setBorrowed(bookMapper.countByBorrowed(true));
-        // v0.5 切换真实分类：book.category 字段落地后改为 GROUP BY category 的降序统计
-        stats.setCategories(List.of(StatsResponse.CategoryCount.of("全部", total)));
+        stats.setCategories(bookMapper.categoryCounts());
         return stats;
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null || category.trim().isEmpty()) {
+            return DEFAULT_CATEGORY;
+        }
+        return category.trim();
+    }
+
+    private int normalizeCopies(Integer totalCopies) {
+        return totalCopies == null ? 1 : totalCopies;
     }
 }

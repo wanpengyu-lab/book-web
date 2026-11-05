@@ -39,8 +39,8 @@ class SearchAcrossPagesTest {
         when(bookMapper.countByKeyword(anyString())).thenReturn(12);
 
         // 第 1 页：offset=0；第 3 页：offset=10 —— keyword 均下推 SQL
-        bookService.searchBooks("刘", 1, 5);
-        bookService.searchBooks("刘", 3, 5);
+        bookService.searchBooks("刘", null, 1, 5);
+        bookService.searchBooks("刘", null, 3, 5);
 
         ArgumentCaptor<String> kwCap = ArgumentCaptor.forClass(String.class);
         var sizeCap = ArgumentCaptor.forClass(Integer.class);
@@ -60,7 +60,7 @@ class SearchAcrossPagesTest {
         when(bookMapper.countByKeyword(anyString())).thenReturn(12);
 
         for (int page = 1; page <= 3; page++) {
-            BookPageResponse r = bookService.searchBooks("科幻", page, 5);
+            BookPageResponse r = bookService.searchBooks("科幻", null, page, 5);
             assertEquals(12, r.getTotal(), "第 " + page + " 页 total 应为命中全量");
         }
         verify(bookMapper, org.mockito.Mockito.times(3)).countByKeyword("科幻");
@@ -71,7 +71,7 @@ class SearchAcrossPagesTest {
         when(bookMapper.search(anyString(), anyInt(), anyInt())).thenReturn(List.<Book>of());
         when(bookMapper.countByKeyword(anyString())).thenReturn(0);
 
-        BookPageResponse r = bookService.searchBooks("不存在的关键词", 1, 5);
+        BookPageResponse r = bookService.searchBooks("不存在的关键词", null, 1, 5);
 
         assertEquals(0, r.getTotal());
         assertTrue(r.getList().isEmpty(), "无结果应返回空 list，不报错");
@@ -82,8 +82,8 @@ class SearchAcrossPagesTest {
         when(bookMapper.search(anyString(), anyInt(), anyInt())).thenReturn(List.<Book>of());
         when(bookMapper.countByKeyword(anyString())).thenReturn(12);
 
-        bookService.searchBooks(null, 1, 5);
-        bookService.searchBooks("   ", 1, 5);
+        bookService.searchBooks(null, null, 1, 5);
+        bookService.searchBooks("   ", null, 1, 5);
 
         // 空关键词 trim 后传空串，由 SQL <if> 跳过过滤（全库分页）
         verify(bookMapper, org.mockito.Mockito.times(2)).search("", 5, 0);
@@ -95,10 +95,10 @@ class SearchAcrossPagesTest {
         when(bookMapper.search(anyString(), anyInt(), anyInt())).thenReturn(List.<Book>of());
         when(bookMapper.countByKeyword(anyString())).thenReturn(0);
 
-        BookPageResponse oversize = bookService.searchBooks("", 1, 500);
+        BookPageResponse oversize = bookService.searchBooks("", null, 1, 500);
         assertEquals(100, oversize.getSize(), "size 上限 100");
 
-        BookPageResponse zeroPage = bookService.searchBooks("", 0, 5);
+        BookPageResponse zeroPage = bookService.searchBooks("", null, 0, 5);
         assertEquals(1, zeroPage.getPage(), "page 下限 1");
 
         verify(bookMapper).search("", 100, 0);
