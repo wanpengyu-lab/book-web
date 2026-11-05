@@ -13,6 +13,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?必须显式提供}
     networks:
       - fastapi-net
+    # v1.0 运维交付物（PRD 第 4 章 v1.0）：开放接口 /api/stats 作健康探测。
+    # 注：需用 CMD-SHELL（shell 形式）——exec 数组形式不解析 ||，会把 "||"/"exit"/"1"
+    # 当作 curl 的额外 URL 导致 exit 3（实测踩坑修正，命令本身与 PRD 一致）。
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/stats || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
   fastapi-net:
