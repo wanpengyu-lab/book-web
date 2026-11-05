@@ -173,7 +173,10 @@ function exportCsv(): void {
     b.borrowed ? '在借' : '在馆',
     b.totalCopies,
   ])
-  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  // 文件名时间戳用本地日期（同 trend 补零，避免 UTC 0/8 点边界差一天）
+  const now = new Date()
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}`
   downloadCsv(`books-${stamp}.csv`, [header, ...body])
   toast({ title: '已导出 CSV', description: `${books.length} 条记录（UTF-8 BOM）` })
 }

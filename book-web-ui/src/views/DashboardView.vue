@@ -22,14 +22,18 @@ import { toastError } from '@/components/ui/toast/use-toast'
 const data = ref<DashboardData | null>(null)
 const loading = ref(true)
 
-/** 近 30 天连续序列：稀疏 trend 补零（契约拍板项 a） */
+/** 近 30 天连续序列：稀疏 trend 补零（契约拍板项 a）
+ * 日期用本地时区格式化（避免 toISOString 的 UTC 0/8 点边界与后端日期错位一天） */
 function fillTrend(sparse: TrendPoint[]): { date: string; count: number }[] {
-  const byDate = new Map(sparse.map((p) => [p.date, p.count]))
+  const p = (n: number) => String(n).padStart(2, '0')
+  const localDate = (d: Date) => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  const byDate = new Map(sparse.map((point) => [point.date, point.count]))
   const DAY = 24 * 60 * 60 * 1000
   const out: { date: string; count: number }[] = []
+  const today = new Date()
+  today.setHours(12, 0, 0, 0) // 正午锚点，规避跨日边界
   for (let i = 29; i >= 0; i--) {
-    const d = new Date(Date.now() - i * DAY)
-    const date = d.toISOString().slice(0, 10)
+    const date = localDate(new Date(today.getTime() - i * DAY))
     out.push({ date, count: byDate.get(date) ?? 0 })
   }
   return out
