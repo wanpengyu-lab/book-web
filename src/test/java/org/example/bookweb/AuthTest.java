@@ -8,6 +8,7 @@ import org.example.bookweb.entity.User;
 import org.example.bookweb.mapper.UserMapper;
 import org.example.bookweb.service.AuthService;
 import org.example.bookweb.service.BookService;
+import org.example.bookweb.service.BorrowService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,9 @@ class AuthTest {
 
     @MockitoBean
     private BookService bookService;
+
+    @MockitoBean
+    private BorrowService borrowService;
 
     private SecretKey key() {
         return Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));

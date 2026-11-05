@@ -2,6 +2,7 @@ package org.example.bookweb;
 
 import org.example.bookweb.dto.Result;
 import org.example.bookweb.service.AuthService;
+import org.example.bookweb.service.BorrowService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -69,6 +70,30 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthService.InvalidCredentialsException.class)
     public ResponseEntity<Result<Void>> handleInvalidCredentials(AuthService.InvalidCredentialsException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Result.error(40101, e.getMessage()));
+    }
+
+    /** v0.4：图书不存在 -> 404 + 40401 */
+    @ExceptionHandler(BorrowService.BookNotFoundException.class)
+    public ResponseEntity<Result<Void>> handleBookNotFound(BorrowService.BookNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.error(40401, e.getMessage()));
+    }
+
+    /** v0.4：借还业务冲突（抢借失败 / 无在借记录可还）-> 409 + 40901 */
+    @ExceptionHandler(BorrowService.BorrowConflictException.class)
+    public ResponseEntity<Result<Void>> handleBorrowConflict(BorrowService.BorrowConflictException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Result.error(40901, e.getMessage()));
+    }
+
+    /** v0.4：reader 查他人记录 -> 403 + 40301 */
+    @ExceptionHandler(BorrowService.RecordAccessDeniedException.class)
+    public ResponseEntity<Result<Void>> handleRecordAccessDenied(BorrowService.RecordAccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.error(40301, e.getMessage()));
+    }
+
+    /** v0.4：status 非法 -> 400 + 40001 */
+    @ExceptionHandler(BorrowService.InvalidStatusException.class)
+    public ResponseEntity<Result<Void>> handleInvalidStatus(BorrowService.InvalidStatusException e) {
+        return ResponseEntity.badRequest().body(Result.error(40001, e.getMessage()));
     }
 
     /** 兜底 -> 50001，响应只回概要，不回堆栈；详情仅记入服务端日志 */

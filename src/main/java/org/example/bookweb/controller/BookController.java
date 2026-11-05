@@ -1,5 +1,6 @@
 package org.example.bookweb.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.bookweb.dto.AddBookRequest;
@@ -8,6 +9,7 @@ import org.example.bookweb.dto.Result;
 import org.example.bookweb.dto.UpdateBookRequest;
 import org.example.bookweb.entity.Book;
 import org.example.bookweb.service.BookService;
+import org.example.bookweb.service.BorrowService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class BookController {
 
     private final BookService bookService;
+    private final BorrowService borrowService;
 
     @GetMapping("/books")
     public Result<List<Book>> listBooks() {
@@ -71,6 +74,18 @@ public class BookController {
         return Result.success(bookService.deleteBook(id));
     }
 
+    /** v0.4：借出（登录用户；拦截器放行，BorrowService 条件更新并发安全） */
+    @PutMapping("/api/books/{id}/borrow")
+    public Result<Boolean> apiBorrow(@PathVariable int id, HttpServletRequest request) {
+        return Result.success(borrowService.borrow(id, (Integer) request.getAttribute("userId")));
+    }
+
+    /** v0.4：归还（登录用户；同事务回写借阅记录与在借状态） */
+    @PutMapping("/api/books/{id}/return")
+    public Result<Boolean> apiReturn(@PathVariable int id, HttpServletRequest request) {
+        return Result.success(borrowService.returnBook(id, (Integer) request.getAttribute("userId")));
+    }
+
     /** 旧端点：已被 /api/books 取代，保留至 v0.10 统一删除（PRD 2.1） */
     @Deprecated
     @GetMapping("/books/page")
@@ -96,11 +111,15 @@ public class BookController {
         return Result.success(bookService.deleteBook(id));
     }
 
+    /** 旧端点：已被 PUT /api/books/{id}/borrow（登录用户 + 借阅记录）取代，保留至 v0.10 统一删除（PRD v0.4） */
+    @Deprecated
     @PutMapping("/books/{id}/borrowed")
     public Result<Boolean> borrowedBook(@PathVariable int id) {
         return Result.success(bookService.borrowBook(id));
     }
 
+    /** 旧端点：已被 PUT /api/books/{id}/return（登录用户 + 借阅记录）取代，保留至 v0.10 统一删除（PRD v0.4） */
+    @Deprecated
     @PutMapping("/books/{id}/return")
     public Result<Boolean> returnBook(@PathVariable int id) {
         return Result.success(bookService.returnBook(id));

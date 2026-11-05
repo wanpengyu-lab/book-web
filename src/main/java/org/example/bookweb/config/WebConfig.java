@@ -1,8 +1,10 @@
 package org.example.bookweb.config;
 
 import io.jsonwebtoken.security.Keys;
+import org.example.bookweb.dto.BorrowProperties;
 import org.example.bookweb.interceptor.JwtInterceptor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -20,6 +22,7 @@ import java.nio.charset.StandardCharsets;
  * - JwtInterceptor 只拦 /api/**，旧无前缀端点保持现状。
  */
 @Configuration
+@EnableConfigurationProperties(BorrowProperties.class)
 public class WebConfig implements WebMvcConfigurer {
 
     private final SecretKey jwtSecretKey;

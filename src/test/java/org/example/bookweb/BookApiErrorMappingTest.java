@@ -2,6 +2,7 @@ package org.example.bookweb;
 
 import org.example.bookweb.controller.BookController;
 import org.example.bookweb.service.BookService;
+import org.example.bookweb.service.BorrowService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ class BookApiErrorMappingTest {
 
     @MockitoBean
     private BookService bookService;
+
+    @MockitoBean
+    private BorrowService borrowService;
 
     @Test
     void missingFieldReturns400AndCode40001() throws Exception {

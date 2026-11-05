@@ -50,22 +50,29 @@ public class JwtInterceptor implements HandlerInterceptor {
             return reject(response, HttpStatus.UNAUTHORIZED, 40101, "未登录或缺少 Bearer token");
         }
         Claims claims;
+        int userId;
         try {
             claims = Jwts.parser().verifyWith(secretKey).build()
                     .parseSignedClaims(auth.substring(7)).getPayload();
+            userId = Integer.parseInt(claims.getSubject());
         } catch (ExpiredJwtException e) {
             return reject(response, HttpStatus.UNAUTHORIZED, 40101, "token 已过期，请重新登录");
         } catch (JwtException | IllegalArgumentException e) {
             return reject(response, HttpStatus.UNAUTHORIZED, 40101, "token 无效");
         }
 
-        // userId / role 存入 request attribute，供后续版本（v0.4 借阅等）使用
-        request.setAttribute("userId", claims.getSubject());
+        // userId / role 存入 request attribute，供借阅、记录查询等接口使用
+        request.setAttribute("userId", userId);
         request.setAttribute("role", claims.get("role", String.class));
 
-        // POST/PUT/DELETE /api/books/** 需 admin
+        // v0.4：借/还（PUT /api/books/{id}/borrow|return）为登录用户操作，不走 admin 检查（PRD v0.4）
+        boolean borrowOrReturn = path.startsWith("/api/books/")
+                && (path.endsWith("/borrow") || path.endsWith("/return"));
+
+        // POST/PUT/DELETE /api/books/** 需 admin（v0.3 拦截规则）
         if ((path.equals("/api/books") || path.startsWith("/api/books/"))
                 && ("POST".equals(method) || "PUT".equals(method) || "DELETE".equals(method))
+                && !borrowOrReturn
                 && !"admin".equals(claims.get("role", String.class))) {
             return reject(response, HttpStatus.FORBIDDEN, 40301, "无权限：该操作需要 admin");
         }

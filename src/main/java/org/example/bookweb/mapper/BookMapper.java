@@ -25,6 +25,13 @@ public interface BookMapper {
     @Update("UPDATE book SET is_borrowed = #{is_borrowed} WHERE id = #{id}")
     boolean setBorrowed(@Param("is_borrowed") boolean is_borrowed, @Param("id") int id);
 
+    /**
+     * v0.4 借阅并发互斥（PRD 2.1 锁定方案）：条件更新，影响行数=0 表示书已被借走
+     * （并发抢锁失败或已在借出状态）→ 由 BorrowService 抛 40901「该书刚被借走」。
+     */
+    @Update("UPDATE book SET is_borrowed = 1 WHERE id = #{id} AND is_borrowed = 0")
+    int borrowIfAvailable(@Param("id") int id);
+
     @Select("SELECT COUNT(*) FROM book")
     int countAll();
 

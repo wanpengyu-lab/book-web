@@ -419,8 +419,8 @@
         add: (data) => fetch('/api/books', { method: 'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(data) }).then(r => r.json()),
         update: (id, data) => fetch(`/books/${id}`, { method: 'PUT', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(data) }).then(r => r.json()),
         delete: (id) => fetch(`/books/${id}`, { method: 'DELETE', headers: authHeaders() }).then(r => r.json()),
-        borrow: (id) => fetch(`/books/${id}/borrowed`, { method: 'PUT', headers: authHeaders() }).then(r => r.json()),
-        return: (id) => fetch(`/books/${id}/return`, { method: 'PUT', headers: authHeaders() }).then(r => r.json()),
+        borrow: (id) => fetch(`/api/books/${id}/borrow`, { method: 'PUT', headers: authHeaders() }).then(r => r.json()),
+        return: (id) => fetch(`/api/books/${id}/return`, { method: 'PUT', headers: authHeaders() }).then(r => r.json()),
     };
 
     // ===== 初始化 =====
