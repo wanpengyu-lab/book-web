@@ -43,11 +43,32 @@ public class BookController {
 
     /**
      * v0.2 起不再接收 id（修 G5）：主键由数据库 AUTO_INCREMENT 生成（V0_2__book_auto_increment.sql）。
-     * 过渡态：本版暂无鉴权，v0.3 起加锁（POST/PUT/DELETE /api/books/** 需 admin）。
+     * v0.3 起 POST/PUT/DELETE /api/books/** 由 JwtInterceptor 强制 admin（PRD v0.3 拦截规则）。
      */
     @PostMapping("/api/books")
     public Result<Boolean> apiAddBook(@Valid @RequestBody AddBookRequest req) {
         return Result.success(bookService.addBook(req.getTitle(), req.getAuthor()));
+    }
+
+    /**
+     * v0.3：详情接口。GET 在 PRD 放行表内（「GET /api/books（含详情）」），
+     * 行为暂与旧端点一致，v0.5 起改为聚合响应。
+     */
+    @GetMapping("/api/books/{id}")
+    public Result<Book> apiGetBook(@PathVariable int id) {
+        return Result.success(bookService.getBookById(id));
+    }
+
+    /** v0.3：编辑接口（admin），行为与旧端点一致，v0.5 扩展新字段 */
+    @PutMapping("/api/books/{id}")
+    public Result<Boolean> apiUpdateBook(@PathVariable int id, @Valid @RequestBody UpdateBookRequest req) {
+        return Result.success(bookService.updateBook(id, req.getTitle(), req.getAuthor()));
+    }
+
+    /** v0.3：删除接口（admin），行为与旧端点一致 */
+    @DeleteMapping("/api/books/{id}")
+    public Result<Boolean> apiDeleteBook(@PathVariable int id) {
+        return Result.success(bookService.deleteBook(id));
     }
 
     /** 旧端点：已被 /api/books 取代，保留至 v0.10 统一删除（PRD 2.1） */

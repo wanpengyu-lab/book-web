@@ -1,6 +1,7 @@
 package org.example.bookweb;
 
 import org.example.bookweb.dto.Result;
+import org.example.bookweb.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -49,6 +50,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<Result<Void>> handleDuplicateKey(DuplicateKeyException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Result.error(40901, "该编号已存在，添加失败"));
+    }
+
+    /** v0.3：注册用户名已存在 -> 409 + 40901 */
+    @ExceptionHandler(AuthService.UsernameExistsException.class)
+    public ResponseEntity<Result<Void>> handleUsernameExists(AuthService.UsernameExistsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Result.error(40901, e.getMessage()));
+    }
+
+    /** v0.3：登录凭据错误 -> 401 + 40101（不区分用户名/密码哪个错，避免账号枚举） */
+    @ExceptionHandler(AuthService.InvalidCredentialsException.class)
+    public ResponseEntity<Result<Void>> handleInvalidCredentials(AuthService.InvalidCredentialsException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Result.error(40101, e.getMessage()));
     }
 
     /** 兜底 -> 50001，响应只回概要，不回堆栈；详情仅记入服务端日志 */

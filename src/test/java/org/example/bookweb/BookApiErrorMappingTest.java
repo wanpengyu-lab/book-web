@@ -21,7 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 缺字段 -> 400 + 40001；请求体格式/类型错误 -> 400 + 40001；重复键冲突 -> 409 + 40901。
  * 注：AddBookRequest / UpdateBookRequest 均无 id 字段，请求体不出现 id。
  */
-@WebMvcTest(BookController.class)
+// v0.3 起 slice 会加载 WebConfig（注册 JwtInterceptor），测试属性提供 JWT_SECRET
+@WebMvcTest(controllers = BookController.class, properties = "JWT_SECRET=test-jwt-secret-0123456789abcdef0123456789abcdef")
 class BookApiErrorMappingTest {
 
     @Autowired

@@ -24,6 +24,28 @@
         .header h1 { font-size: 26px; font-weight: 700; letter-spacing: 2px; }
         .header p { font-size: 13px; opacity: .8; margin-top: 6px; }
 
+        /* v0.3 登录条（最简，仅功能性的，不改整体视觉） */
+        .login-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: #fff;
+            border-radius: 10px;
+            padding: 10px 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 6px rgba(0,0,0,.06);
+        }
+        .login-bar input {
+            padding: 7px 10px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            width: 140px;
+        }
+        .login-bar input:focus { border-color: #667eea; }
+        .login-status { font-size: 13px; color: #888; margin-left: auto; }
+
         /* 主容器 */
         .container { max-width: 900px; margin: -20px auto 40px; padding: 0 20px; }
 
@@ -269,6 +291,14 @@
 </div>
 
 <div class="container">
+    <!-- v0.3 最简登录条：token 只存内存变量，API 封装统一带 Bearer 头 -->
+    <div class="login-bar">
+        <input type="text" id="loginUser" placeholder="用户名">
+        <input type="password" id="loginPass" placeholder="密码">
+        <button class="btn btn-primary btn-sm" onclick="doLogin()">登录</button>
+        <span class="login-status" id="loginStatus">未登录</span>
+    </div>
+
     <!-- 统计卡片 -->
     <div class="stats">
         <div class="stat-card total">
@@ -351,16 +381,46 @@
     let allBooks = [];       // 当前页数据（编辑弹窗回显用）
     let displayBooks = [];   // 当前展示的数据
     let editingId = null;    // 正在编辑的图书ID，null=新增模式
+    let token = null;        // v0.3：token 只存内存变量（不持久化）
 
-    // ===== API 封装（v0.2 起统一返回 Result{code,message,data}，解包取 data） =====
+    // v0.3：所有请求统一附带 Bearer 头（已登录时）
+    function authHeaders(extra) {
+        const h = Object.assign({}, extra || {});
+        if (token) h['Authorization'] = 'Bearer ' + token;
+        return h;
+    }
+
+    // ===== v0.3 登录（POST /api/auth/login） =====
+    async function doLogin() {
+        const u = document.getElementById('loginUser').value.trim();
+        const p = document.getElementById('loginPass').value.trim();
+        if (!u || !p) { showToast('请输入用户名和密码', 'error'); return; }
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            }).then(r => r.json());
+            if (res.code === 0) {
+                token = res.data.token;
+                document.getElementById('loginStatus').textContent =
+                    `已登录：${res.data.user.username}（${res.data.user.role}）`;
+                showToast('登录成功', 'success');
+            } else {
+                showToast(res.message || '登录失败', 'error');
+            }
+        } catch (e) { showToast('网络错误', 'error'); }
+    }
+
+    // ===== API 封装（v0.2 起统一返回 Result{code,message,data}，解包取 data；v0.3 统一带 Bearer） =====
     const API = {
-        page: (page, size, keyword) => fetch(`/api/books?page=${page}&size=${size}&keyword=${encodeURIComponent(keyword || '')}`).then(r => r.json()),
-        stats: () => fetch('/api/stats').then(r => r.json()),
-        add: (data) => fetch('/api/books', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
-        update: (id, data) => fetch(`/books/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
-        delete: (id) => fetch(`/books/${id}`, { method: 'DELETE' }).then(r => r.json()),
-        borrow: (id) => fetch(`/books/${id}/borrowed`, { method: 'PUT' }).then(r => r.json()),
-        return: (id) => fetch(`/books/${id}/return`, { method: 'PUT' }).then(r => r.json()),
+        page: (page, size, keyword) => fetch(`/api/books?page=${page}&size=${size}&keyword=${encodeURIComponent(keyword || '')}`, { headers: authHeaders() }).then(r => r.json()),
+        stats: () => fetch('/api/stats', { headers: authHeaders() }).then(r => r.json()),
+        add: (data) => fetch('/api/books', { method: 'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(data) }).then(r => r.json()),
+        update: (id, data) => fetch(`/books/${id}`, { method: 'PUT', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(data) }).then(r => r.json()),
+        delete: (id) => fetch(`/books/${id}`, { method: 'DELETE', headers: authHeaders() }).then(r => r.json()),
+        borrow: (id) => fetch(`/books/${id}/borrowed`, { method: 'PUT', headers: authHeaders() }).then(r => r.json()),
+        return: (id) => fetch(`/books/${id}/return`, { method: 'PUT', headers: authHeaders() }).then(r => r.json()),
     };
 
     // ===== 初始化 =====
