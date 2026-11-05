@@ -3,6 +3,7 @@ package org.example.bookweb;
 import org.example.bookweb.dto.Result;
 import org.example.bookweb.service.AuthService;
 import org.example.bookweb.service.BorrowService;
+import org.example.bookweb.service.ReservationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -101,6 +102,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BorrowService.InvalidStatusException.class)
     public ResponseEntity<Result<Void>> handleInvalidStatus(BorrowService.InvalidStatusException e) {
         return ResponseEntity.badRequest().body(Result.error(40001, e.getMessage()));
+    }
+
+    /** v0.6：预约图书不存在 -> 404 + 40401 */
+    @ExceptionHandler(ReservationService.BookNotFoundException.class)
+    public ResponseEntity<Result<Void>> handleReservationBookNotFound(ReservationService.BookNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.error(40401, e.getMessage()));
+    }
+
+    /** v0.6：在馆书预约 -> 400 + 40001 */
+    @ExceptionHandler(ReservationService.InvalidReserveException.class)
+    public ResponseEntity<Result<Void>> handleInvalidReserve(ReservationService.InvalidReserveException e) {
+        return ResponseEntity.badRequest().body(Result.error(40001, e.getMessage()));
+    }
+
+    /** v0.6：重复预约 -> 409 + 40901 */
+    @ExceptionHandler(ReservationService.DuplicateReservationException.class)
+    public ResponseEntity<Result<Void>> handleDuplicateReservation(ReservationService.DuplicateReservationException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Result.error(40901, e.getMessage()));
     }
 
     /** 兜底 -> 50001，响应只回概要，不回堆栈；详情仅记入服务端日志 */

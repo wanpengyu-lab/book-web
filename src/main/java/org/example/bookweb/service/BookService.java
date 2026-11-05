@@ -101,6 +101,7 @@ public class BookService {
 
     /**
      * v0.5 详情聚合：全量字段 + recentRecords（最近 5 条，新→旧）+ relatedIds 一次请求取齐（PRD v0.5 强制规范）。
+     * v0.6：relatedIds 切换为真实共借推荐调用。
      */
     public BookDetailResponse getBookDetail(int id) {
         Book book = bookMapper.findById(id);
@@ -111,9 +112,24 @@ public class BookService {
         BookDetailResponse detail = new BookDetailResponse();
         BeanUtils.copyProperties(book, detail);
         detail.setRecentRecords(bookMapper.recentRecords(id, 5));
-        // v0.6 接入共借：本版固定空数组占位（PRD v0.5）
-        detail.setRelatedIds(List.of());
+        detail.setRelatedIds(getRelatedBookIds(id));
         return detail;
+    }
+
+    /**
+     * v0.6 共借推荐：借过该书的人还借过哪些书（按共借次数降序前 6）；
+     * 共借无数据必须退化为「同分类最近入库 LIMIT 6」，不允许返回空列表（PRD v0.6 强制规范）。
+     */
+    public List<Integer> getRelatedBookIds(int id) {
+        List<Integer> related = bookMapper.relatedByCoBorrow(id);
+        if (!related.isEmpty()) {
+            return related;
+        }
+        Book book = bookMapper.findById(id);
+        if (book == null) {
+            return List.of();
+        }
+        return bookMapper.recentIdsByCategory(book.getCategory(), id, 6);
     }
 
     /**

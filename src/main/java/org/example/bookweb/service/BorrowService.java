@@ -27,6 +27,7 @@ public class BorrowService {
     private final BookMapper bookMapper;
     private final BorrowRecordMapper borrowRecordMapper;
     private final BorrowProperties borrowProperties;
+    private final ReservationService reservationService;
 
     /** 图书不存在 → 40401 */
     public static class BookNotFoundException extends RuntimeException {
@@ -60,10 +61,13 @@ public class BorrowService {
             throw new BorrowConflictException("该书刚被借走");
         }
         borrowRecordMapper.insert(bookId, userId, LocalDateTime.now().plusDays(borrowProperties.getDays()));
+        // v0.6 状态机闭环（同一事务）：借出人若有本人预约 → fulfilled
+        reservationService.fulfillOnBorrow(bookId, userId);
         return true;
     }
 
-    /** 归还：同事务内先改记录（行数=0 说明该用户无在借记录，禁止误放他人借出状态），再回写 is_borrowed=0 */
+    /** 归还：同事务内先改记录（行数=0 说明该用户无在借记录，禁止误放他人借出状态），再回写 is_borrowed=0；
+     *  v0.6：同一事务内预约队首 waiting → notified 并生成站内通知（PRD v0.6 强制规范，禁止异步补通知） */
     @Transactional
     public boolean returnBook(int bookId, int userId) {
         int rows = borrowRecordMapper.markReturned(bookId, userId);
@@ -71,6 +75,7 @@ public class BorrowService {
             throw new BorrowConflictException("该书当前不在您的在借记录中，无法归还");
         }
         bookMapper.setBorrowed(false, bookId);
+        reservationService.notifyQueueHead(bookId);
         return true;
     }
 

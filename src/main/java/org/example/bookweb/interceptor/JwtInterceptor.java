@@ -35,10 +35,17 @@ public class JwtInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        // 放行：开放只读接口（GET）与认证接口
-        if ("GET".equals(method)
-                && (path.equals("/api/stats") || path.equals("/api/books") || path.startsWith("/api/books/"))) {
-            return true;
+        // 放行：开放只读接口（GET）与认证接口。
+        // v0.6：GET 放行收窄为「/api/stats、/api/books 列表、/api/books/{数字id} 详情」——
+        // 不得放行 /api/books/{id}/related 等子路径（v0.6 明确其按「其余 /api/** 需登录」处理）。
+        if ("GET".equals(method)) {
+            if (path.equals("/api/stats") || path.equals("/api/books")) {
+                return true;
+            }
+            if (path.startsWith("/api/books/")
+                    && path.substring("/api/books/".length()).matches("\\d+")) {
+                return true;
+            }
         }
         if (path.startsWith("/api/auth/")) {
             return true;
@@ -66,13 +73,14 @@ public class JwtInterceptor implements HandlerInterceptor {
         request.setAttribute("role", claims.get("role", String.class));
 
         // v0.4：借/还（PUT /api/books/{id}/borrow|return）为登录用户操作，不走 admin 检查（PRD v0.4）
-        boolean borrowOrReturn = path.startsWith("/api/books/")
-                && (path.endsWith("/borrow") || path.endsWith("/return"));
+        // v0.6：预约（POST /api/books/{id}/reserve）同为登录用户操作（PRD v0.6），同类豁免 admin 检查
+        boolean borrowReturnReserve = path.startsWith("/api/books/")
+                && (path.endsWith("/borrow") || path.endsWith("/return") || path.endsWith("/reserve"));
 
         // POST/PUT/DELETE /api/books/** 需 admin（v0.3 拦截规则）
         if ((path.equals("/api/books") || path.startsWith("/api/books/"))
                 && ("POST".equals(method) || "PUT".equals(method) || "DELETE".equals(method))
-                && !borrowOrReturn
+                && !borrowReturnReserve
                 && !"admin".equals(claims.get("role", String.class))) {
             return reject(response, HttpStatus.FORBIDDEN, 40301, "无权限：该操作需要 admin");
         }

@@ -59,11 +59,21 @@ public class BookController {
 
     /**
      * v0.5：聚合详情。GET 在 PRD 放行表内（「GET /api/books（含详情）」）；
-     * 全量字段 + recentRecords(≤5) + relatedIds 一次请求取齐（PRD v0.5 强制规范）。
+     * 全量字段 + recentRecords(≤5) + relatedIds 一次请求取齐（PRD v0.5 强制规范）；
+     * v0.6：relatedIds 为真实共借推荐。
      */
     @GetMapping("/api/books/{id}")
     public Result<BookDetailResponse> apiGetBook(@PathVariable int id) {
         return Result.success(bookService.getBookDetail(id));
+    }
+
+    /**
+     * v0.6：共借推荐（前 6，按共借次数降序）；无共借数据退化为同分类最近入库前 6。
+     * 不在 v0.3 放行表内 → 拦截器按「其余 /api/** 需登录」处理。
+     */
+    @GetMapping("/api/books/{id}/related")
+    public Result<List<Integer>> apiRelatedBooks(@PathVariable int id) {
+        return Result.success(bookService.getRelatedBookIds(id));
     }
 
     /** v0.5：编辑接口（admin）携带扩展字段（category/publisher/isbn/coverUrl/description/totalCopies） */

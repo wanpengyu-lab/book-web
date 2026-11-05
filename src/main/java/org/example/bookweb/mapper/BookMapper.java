@@ -190,4 +190,30 @@ public interface BookMapper {
             LIMIT 10
             """)
     List<DashboardResponse.TopBorrowed> topBorrowed();
+
+    /**
+     * v0.6 共借推荐（PRD v0.6 内嵌 SQL 口径）：借过 #{id} 的人还借过哪些书，按共借人数降序前 6。
+     * 注：PRD 原文 GROUP BY b2.book_id 的 b2 为笔误（语句中无 b2 别名），按语义修正为 r2.book_id。
+     */
+    @Select("""
+            SELECT r2.book_id AS bookId, COUNT(*) AS cnt
+            FROM borrow_record r1
+            JOIN borrow_record r2 ON r1.user_id = r2.user_id AND r1.book_id != r2.book_id
+            WHERE r1.book_id = #{id}
+            GROUP BY r2.book_id
+            ORDER BY cnt DESC, r2.book_id
+            LIMIT 6
+            """)
+    List<Integer> relatedByCoBorrow(@Param("id") int id);
+
+    /** v0.6 冷启动退化：同分类最近入库 LIMIT 6（排除自身）；共借无数据时必须走此路径，不允许返回空列表 */
+    @Select("""
+            SELECT id FROM book
+            WHERE category = #{category} AND id != #{id}
+            ORDER BY id DESC
+            LIMIT #{limit}
+            """)
+    List<Integer> recentIdsByCategory(@Param("category") String category,
+                                      @Param("id") int id,
+                                      @Param("limit") int limit);
 }

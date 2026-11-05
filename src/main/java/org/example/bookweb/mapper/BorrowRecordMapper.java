@@ -66,4 +66,16 @@ public interface BorrowRecordMapper {
             """)
     int countByFilter(@Param("userId") Integer userId,
                       @Param("status") String status);
+
+    /** v0.6 OverdueScanJob 扫描：active 且 due_at 距今不足 3 天（未逾期、即将到期）的记录 */
+    @Select("""
+            SELECT id, book_id AS bookId, user_id AS userId, borrowed_at AS borrowedAt,
+                   due_at AS dueAt, returned_at AS returnedAt, status
+            FROM borrow_record
+            WHERE status = 'active'
+              AND due_at > NOW()
+              AND due_at < DATE_ADD(NOW(), INTERVAL 3 DAY)
+            ORDER BY id
+            """)
+    List<BorrowRecord> findDueSoon();
 }
