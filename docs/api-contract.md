@@ -36,7 +36,7 @@
 ### 0.4 外部数据源约定（v0.7 拍板）
 
 - `GET /api/isbn/{isbn}` 未命中 / 外部失败超时：**HTTP 200 + code 0 + data:null + 明确 message**，不抛 5xx。
-- `POST /api/assistant/chat` 未配置 `GLM_API_KEY`：**HTTP 200 + code 0 + data:null + message「AI 服务未配置」**。
+- `POST /api/assistant/chat` 未配置 `DEEPSEEK_API_KEY`：**HTTP 200 + code 0 + data:null + message「AI 服务未配置」**。
 
 ---
 
@@ -175,8 +175,8 @@ categories 为 GROUP BY category 的真实分类统计，按 count 降序。
 请求：`{"message": "馆里有哪些科幻小说"}`
 响应：`{"code":0,"message":"ok","data":{"reply":"..."}}`。
 
-- 智谱 GLM（`GLM_API_KEY`），模型默认 `glm-4.6`（仅 `GLM_MODEL` 可覆盖），function calling 仅 `search_books(keyword,category)` 与 `get_book_status(id)`，非流式；回答必须基于工具返回的真实馆藏，查不到答「馆内没有」。
-- 未配置 key → `{"code":0,"message":"AI 服务未配置","data":null}`（HTTP 200）；GLM 调用失败 → 200 + code 0 + data:null +「AI 服务暂时不可用，请稍后重试」。
+- DeepSeek 开放平台（OpenAI 兼容 /chat/completions，`DEEPSEEK_API_KEY`），模型默认 `deepseek-chat`（仅 `DEEPSEEK_MODEL` 可覆盖），function calling 仅 `search_books(keyword,category)` 与 `get_book_status(id)`，非流式；回答必须基于工具返回的真实馆藏，查不到答「馆内没有」。
+- 未配置 key → `{"code":0,"message":"AI 服务未配置","data":null}`（HTTP 200）；AI 调用失败 → 200 + code 0 + data:null +「AI 服务暂时不可用，请稍后重试」。
 
 ---
 

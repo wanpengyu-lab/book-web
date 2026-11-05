@@ -217,14 +217,19 @@ public interface BookMapper {
                                       @Param("id") int id,
                                       @Param("limit") int limit);
 
-    /** v0.7 AI 工具 search_books：keyword（书名/作者 LIKE）与 category（精确）可组合，最多 limit 条 */
+    /**
+     * v0.7 AI 工具 search_books：keyword 与 category（精确）可组合，最多 limit 条。
+     * keyword 同时匹配书名/作者/分类（LIKE）——用户口语「科幻」应能命中 category=科幻 的馆藏
+     * （2026-11-06 DeepSeek 实测校准：仅匹配书名/作者时分类类提问查不出真实馆藏）。
+     */
     @Select("""
             <script>
             SELECT id,title,author,category,is_borrowed AS borrowed
             FROM book
             <where>
                 <if test="keyword != null and keyword != ''">
-                    (title LIKE CONCAT('%',#{keyword},'%') OR author LIKE CONCAT('%',#{keyword},'%'))
+                    (title LIKE CONCAT('%',#{keyword},'%') OR author LIKE CONCAT('%',#{keyword},'%')
+                     OR category LIKE CONCAT('%',#{keyword},'%'))
                 </if>
                 <if test="category != null and category != ''">
                     AND category = #{category}

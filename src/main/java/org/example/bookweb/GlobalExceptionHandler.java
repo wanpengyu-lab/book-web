@@ -140,13 +140,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.ok(Result.notice(e.getMessage()));
     }
 
-    /** v0.7：未配置 GLM_API_KEY -> 200 + code 0 + data:null +「AI 服务未配置」 */
+    /** v0.7：未配置 DEEPSEEK_API_KEY -> 200 + code 0 + data:null +「AI 服务未配置」 */
     @ExceptionHandler(AssistantService.NotConfiguredException.class)
     public ResponseEntity<Result<Void>> handleAssistantNotConfigured(AssistantService.NotConfiguredException e) {
         return ResponseEntity.ok(Result.notice(e.getMessage()));
     }
 
-    /** v0.7：GLM 调用失败/超时 -> 200 + code 0 + data:null + 明确 message（禁止 500） */
+    /** v0.7：AI（DeepSeek）调用失败/超时 -> 200 + code 0 + data:null + 明确 message（禁止 500） */
     @ExceptionHandler(AssistantService.UpstreamUnavailableException.class)
     public ResponseEntity<Result<Void>> handleAssistantUpstream(AssistantService.UpstreamUnavailableException e) {
         return ResponseEntity.ok(Result.notice(e.getMessage()));

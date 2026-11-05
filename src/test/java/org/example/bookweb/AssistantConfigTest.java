@@ -68,10 +68,10 @@ class AssistantConfigTest {
 
     @Test
     void serviceFailsFastOnBlankKey() {
-        AssistantService service = new AssistantService(Mockito.mock(BookMapper.class), "", "glm-4.6");
+        AssistantService service = new AssistantService(Mockito.mock(BookMapper.class), "", "deepseek-chat");
         assertThrows(AssistantService.NotConfiguredException.class,
                 () -> service.chat("馆里有哪些科幻小说"),
-                "未配置 GLM_API_KEY 必须快速失败并提示，不得发起外部调用");
+                "未配置 DEEPSEEK_API_KEY 必须快速失败并提示，不得发起外部调用");
     }
 
     private String readerToken() {

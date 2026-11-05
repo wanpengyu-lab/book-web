@@ -20,9 +20,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * AI 馆藏助手（v0.7，PRD 2.1/2.3 锁定）：
- * - RestClient 调智谱开放平台 chat/completions，非流式（禁止 SSE，列为 v1.x 增强）；
- * - GLM_API_KEY 走环境变量；模型默认 glm-4.6，仅 GLM_MODEL 可覆盖（模型不存在 → 阻塞上报，禁止换模型）；
+ * AI 馆藏助手（v0.7，PRD 2.1/2.3 锁定；2026-11-06 用户批准锁定变更 GLM→DeepSeek）：
+ * - RestClient 调 DeepSeek 开放平台 /chat/completions（OpenAI 兼容，tools 格式同 OpenAI），非流式（禁止 SSE）；
+ * - DEEPSEEK_API_KEY 走环境变量；模型默认 deepseek-chat，仅 DEEPSEEK_MODEL 可覆盖（模型不存在 → 阻塞上报，禁止换模型）；
  * - function calling 仅两工具：search_books(keyword, category) / get_book_status(id)；
  * - 系统提示词写死约束：回答必须基于工具返回的真实馆藏，工具查不到就答「馆内没有」；
  * - key 只走环境变量，不落日志/响应（PRD 3.3）。
@@ -31,22 +31,22 @@ import java.util.Map;
 @Service
 public class AssistantService {
 
-    /** 未配置 GLM_API_KEY → 200 + data:null + message「AI 服务未配置」 */
+    /** 未配置 DEEPSEEK_API_KEY → 200 + data:null + message「AI 服务未配置」 */
     public static class NotConfiguredException extends RuntimeException {
         public NotConfiguredException(String message) { super(message); }
     }
 
-    /** GLM 调用失败/超时 → 200 + data:null + 明确 message（禁止 500） */
+    /** AI 调用失败/超时 → 200 + data:null + 明确 message（禁止 500） */
     public static class UpstreamUnavailableException extends RuntimeException {
         public UpstreamUnavailableException(String message) { super(message); }
     }
 
-    private static final String GLM_CHAT_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+    private static final String DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions";
     /** 工具调用循环上限：防止模型反复 tool_call 拖死请求 */
     private static final int MAX_TOOL_ROUNDS = 3;
-    /** GLM 连接超时；读取超时放宽（LLM 生成耗时），PRD 6.1 未定义覆盖变量，固定常量 */
-    private static final int GLM_CONNECT_TIMEOUT_MS = 5_000;
-    private static final int GLM_READ_TIMEOUT_MS = 60_000;
+    /** 连接超时；读取超时放宽（LLM 生成耗时），PRD 6.1 未定义覆盖变量，固定常量 */
+    private static final int AI_CONNECT_TIMEOUT_MS = 5_000;
+    private static final int AI_READ_TIMEOUT_MS = 60_000;
 
     /** 系统提示词（PRD v0.7 强制规范：写死馆藏约束） */
     private static final String SYSTEM_PROMPT =
@@ -61,14 +61,14 @@ public class AssistantService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AssistantService(BookMapper bookMapper,
-                            @Value("${GLM_API_KEY:}") String apiKey,
-                            @Value("${GLM_MODEL:glm-4.6}") String model) {
+                            @Value("${DEEPSEEK_API_KEY:}") String apiKey,
+                            @Value("${DEEPSEEK_MODEL:deepseek-chat}") String model) {
         this.bookMapper = bookMapper;
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(GLM_CONNECT_TIMEOUT_MS);
-        factory.setReadTimeout(GLM_READ_TIMEOUT_MS);
+        factory.setConnectTimeout(AI_CONNECT_TIMEOUT_MS);
+        factory.setReadTimeout(AI_READ_TIMEOUT_MS);
         this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
@@ -101,12 +101,12 @@ public class AssistantService {
             }
             return "馆内没有相关馆藏信息";
         } catch (RestClientException e) {
-            log.warn("GLM 调用失败: {}", e.getMessage());
+            log.warn("DeepSeek 调用失败: {}", e.getMessage());
             throw new UpstreamUnavailableException("AI 服务暂时不可用，请稍后重试");
         } catch (UpstreamUnavailableException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("GLM 响应解析失败: {}", e.getMessage());
+            log.warn("DeepSeek 响应解析失败: {}", e.getMessage());
             throw new UpstreamUnavailableException("AI 服务响应异常，请稍后重试");
         }
     }
@@ -121,7 +121,7 @@ public class AssistantService {
         request.put("stream", false);
 
         String body = restClient.post()
-                .uri(GLM_CHAT_URL)
+                .uri(DEEPSEEK_CHAT_URL)
                 .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request.toString())

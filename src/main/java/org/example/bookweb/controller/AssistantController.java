@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * AI 馆藏助手接口（v0.7，登录用户）：POST /api/assistant/chat {message} → data:{reply}。
- * 未配置 GLM_API_KEY → 200 + code 0 + data:null + message「AI 服务未配置」（全局异常处理映射）。
+ * 未配置 DEEPSEEK_API_KEY → 200 + code 0 + data:null + message「AI 服务未配置」（全局异常处理映射）。
  */
 @RestController
 @RequiredArgsConstructor
