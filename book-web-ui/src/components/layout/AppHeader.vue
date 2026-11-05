@@ -98,8 +98,8 @@ function onLogout(): void {
           class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <UserIcon class="size-4" />
-          <span class="max-w-24 truncate">{{ user.user?.username }}</span>
-          <span class="rounded-sm bg-muted px-1.5 py-0.5 text-xs">{{ user.user?.role }}</span>
+          <span class="max-w-20 truncate">{{ user.user?.username }}</span>
+          <span class="hidden rounded-sm bg-muted px-1.5 py-0.5 text-xs sm:inline">{{ user.user?.role }}</span>
         </RouterLink>
 
         <Button variant="ghost" size="icon" aria-label="退出登录" @click="onLogout">

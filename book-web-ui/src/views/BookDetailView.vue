@@ -4,7 +4,7 @@
  * 契约：详情一次请求取齐（recentRecords + relatedIds），前端不拼多个详情请求
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import * as booksApi from '@/api/books'
 import * as recordsApi from '@/api/records'
 import { ApiError, type Book, type BookDetail, type BorrowRecord } from '@/api/types'
@@ -25,6 +25,7 @@ import { toast, toastError } from '@/components/ui/toast/use-toast'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 
 const bookId = computed(() => Number(route.params.id))
@@ -95,6 +96,43 @@ watch(bookId, () => {
 onMounted(() => void load())
 
 const historyRows = computed(() => detail.value?.recentRecords ?? [])
+
+/** 删除（admin）：乐观删除 + 5s toast 撤销（替代 confirm），撤销 = 按原数据重新建档 */
+async function removeBook(): Promise<void> {
+  const book = detail.value
+  if (!book || userStore.user?.role !== 'admin') return
+  acting.value = true
+  try {
+    await booksApi.remove(book.id)
+    toast({
+      title: `已删除《${book.title}》`,
+      description: '误删可在 5 秒内撤销',
+      actionLabel: '撤销',
+      onAction: async () => {
+        try {
+          await booksApi.create({
+            title: book.title,
+            author: book.author,
+            category: book.category,
+            publisher: book.publisher ?? undefined,
+            isbn: book.isbn ?? undefined,
+            coverUrl: book.coverUrl ?? undefined,
+            description: book.description ?? undefined,
+            totalCopies: book.totalCopies,
+          })
+          toast({ title: '已撤销删除', description: `《${book.title}》已恢复（id 会重新分配）` })
+        } catch (e) {
+          toastError(e instanceof ApiError ? e.message : '撤销失败', '删除图书')
+        }
+      },
+    })
+    await router.push('/')
+  } catch (e) {
+    toastError(e instanceof ApiError ? e.message : '删除失败，请稍后重试', '删除图书')
+  } finally {
+    acting.value = false
+  }
+}
 </script>
 
 <template>
@@ -166,12 +204,12 @@ const historyRows = computed(() => detail.value?.recentRecords ?? [])
             </div>
           </dl>
 
-          <!-- 借 / 还 / 预约状态流转 -->
+          <!-- 借 / 还 / 预约状态流转（按钮 loading 为动效 5 的一部分） -->
           <div class="space-y-2 border-t border-border pt-4">
             <template v-if="myActiveRecord">
               <StatusTag v-if="isOverdueActive" kind="overdue" class="mb-2" />
-              <Button class="w-full" variant="secondary" :disabled="acting" @click="act('return')">
-                {{ acting ? '处理中…' : '归还' }}
+              <Button class="w-full" variant="secondary" :loading="acting" @click="act('return')">
+                {{ acting ? '归还中…' : '归还' }}
               </Button>
               <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <ClockIcon class="size-3.5" />
@@ -180,8 +218,8 @@ const historyRows = computed(() => detail.value?.recentRecords ?? [])
             </template>
 
             <template v-else-if="!detail.borrowed">
-              <Button class="w-full" :disabled="acting" @click="act('borrow')">
-                {{ acting ? '处理中…' : '借阅' }}
+              <Button class="w-full" :loading="acting" @click="act('borrow')">
+                {{ acting ? '借阅中…' : '借阅' }}
               </Button>
             </template>
 
@@ -194,6 +232,17 @@ const historyRows = computed(() => detail.value?.recentRecords ?? [])
               </Button>
               <StatusTag v-if="reservedLocal" kind="reserved" class="mt-2" />
             </template>
+
+            <!-- admin 维护动作 -->
+            <Button
+              v-if="userStore.user?.role === 'admin'"
+              class="w-full"
+              variant="ghost"
+              :loading="acting"
+              @click="removeBook"
+            >
+              删除此书（撤销窗口 5 秒）
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -217,7 +266,7 @@ const historyRows = computed(() => detail.value?.recentRecords ?? [])
             <CardTitle>借阅历史</CardTitle>
           </CardHeader>
           <CardContent>
-            <div v-if="historyRows.length > 0" class="overflow-x-auto">
+            <div v-if="historyRows.length > 0" class="overflow-x-auto max-md:hidden">
               <table class="w-full text-sm">
                 <thead>
                   <tr class="border-b border-border text-left text-xs text-muted-foreground">
@@ -249,7 +298,20 @@ const historyRows = computed(() => detail.value?.recentRecords ?? [])
                 </tbody>
               </table>
             </div>
-            <EmptyState v-else title="暂无借阅记录" description="这本书还没有被借过" />
+            <!-- 移动端：借阅历史转卡片 -->
+            <ul v-if="historyRows.length > 0" class="space-y-2 md:hidden">
+              <li v-for="record in historyRows" :key="record.id" class="rounded-md border border-border p-3 text-sm">
+                <div class="flex items-center justify-between gap-2">
+                  <span>{{ record.userId === userStore.user?.id ? '我' : `用户 ${record.userId}` }}</span>
+                  <RecordTag :record="record" />
+                </div>
+                <p class="mt-1 text-xs tabular-nums text-muted-foreground">
+                  借出 {{ formatDate(record.borrowedAt) }} · 应还 {{ formatDate(record.dueAt) }}
+                  <template v-if="record.returnedAt"> · 归还 {{ formatDate(record.returnedAt) }}</template>
+                </p>
+              </li>
+            </ul>
+            <EmptyState v-if="historyRows.length === 0" title="暂无借阅记录" description="这本书还没有被借过" />
           </CardContent>
         </Card>
 
@@ -263,7 +325,7 @@ const historyRows = computed(() => detail.value?.recentRecords ?? [])
                 v-for="b in relatedBooks"
                 :key="b.id"
                 :to="`/books/${b.id}`"
-                class="flex items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:border-ring/40"
+                class="flex items-center justify-between gap-3 rounded-md border border-border p-3 transition-all duration-150 hover:-translate-y-0.5 hover:border-ring/50 hover:shadow-rest"
               >
                 <div class="min-w-0">
                   <p class="truncate text-sm font-medium">{{ b.title }}</p>

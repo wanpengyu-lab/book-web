@@ -1,5 +1,6 @@
 /**
  * shadcn-vue Toast 状态源（模块级共享，供任意组件直接 toast()）
+ * 支持 5s 撤销动作（PRD v0.9：以 toast 撤销替代 confirm）
  */
 import { reactive } from 'vue'
 
@@ -7,6 +8,9 @@ export interface ToastInput {
   title?: string
   description?: string
   variant?: 'default' | 'destructive'
+  /** 撤销动作：5s 自动消失前可点击 */
+  actionLabel?: string
+  onAction?: () => void
 }
 
 export interface ToastItem extends ToastInput {
@@ -25,7 +29,7 @@ export function dismissToast(id: number): void {
 export function toast(input: ToastInput): void {
   const id = ++seq
   toastState.toasts.push({ id, ...input })
-  // 5s 自动消失（与 v0.9 交互规范一致）
+  // 5s 自动消失（撤销窗口与 PRD 一致）
   setTimeout(() => dismissToast(id), 5000)
 }
 

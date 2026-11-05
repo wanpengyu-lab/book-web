@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** shadcn-vue Toast（Reka UI 基座）：右下角堆叠，状态源见 use-toast.ts */
-import { ToastDescription, ToastProvider, ToastRoot, ToastTitle, ToastViewport } from 'reka-ui'
+import { ToastAction, ToastDescription, ToastProvider, ToastRoot, ToastTitle, ToastViewport } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import { dismissToast, toastState } from './use-toast'
 </script>
@@ -28,6 +28,14 @@ import { dismissToast, toastState } from './use-toast'
           {{ t.description }}
         </ToastDescription>
       </div>
+      <ToastAction
+        v-if="t.actionLabel"
+        class="cursor-pointer rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-accent"
+        :alt-text="t.actionLabel"
+        @click="t.onAction?.()"
+      >
+        {{ t.actionLabel }}
+      </ToastAction>
     </ToastRoot>
     <ToastViewport class="fixed bottom-4 right-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 outline-none" />
   </ToastProvider>

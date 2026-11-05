@@ -17,9 +17,14 @@ const showChrome = computed(() => route.meta.public !== true)
   <div class="min-h-screen bg-background text-foreground">
     <AppHeader v-if="showChrome" />
     <main :class="showChrome ? 'mx-auto w-full max-w-6xl px-4 pb-16 pt-20' : 'min-h-screen'">
-      <RouterView />
+      <!-- 路由过渡：fade + 8px，180ms（动效 3，CSS 侧尊重 prefers-reduced-motion） -->
+      <RouterView v-slot="{ Component }">
+        <Transition name="route" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </RouterView>
     </main>
     <Toaster />
-    <AiPanel />
+    <AiPanel v-if="showChrome" />
   </div>
 </template>

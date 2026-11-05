@@ -133,7 +133,8 @@ function pick(key: RecordStatusFilter | ''): void {
       </span>
     </div>
 
-    <Card class="overflow-hidden">
+    <!-- 紧凑表格（桌面）；<768px 转卡片布局 -->
+    <Card class="hidden overflow-hidden md:block">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
@@ -175,6 +176,41 @@ function pick(key: RecordStatusFilter | ''): void {
         </table>
       </div>
     </Card>
+
+    <!-- 移动端卡片布局 -->
+    <div class="space-y-3 md:hidden">
+      <template v-if="loading">
+        <div v-for="i in 4" :key="i" class="h-20 animate-pulse rounded-lg bg-muted" />
+      </template>
+      <template v-else-if="rows.length > 0">
+        <Card v-for="r in rows" :key="r.id" class="space-y-2 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <RouterLink :to="`/books/${r.bookId}`" class="min-w-0 truncate text-sm font-medium hover:text-primary">
+              {{ r.bookTitle ?? `#${r.bookId}` }}
+            </RouterLink>
+            <RecordTag :record="r" />
+          </div>
+          <p class="text-xs text-muted-foreground">{{ r.bookAuthor }}</p>
+          <dl class="grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <dt class="text-muted-foreground">借出</dt>
+              <dd class="tabular-nums">{{ formatDate(r.borrowedAt) }}</dd>
+            </div>
+            <div>
+              <dt class="text-muted-foreground">应还</dt>
+              <dd class="tabular-nums">{{ formatDate(r.dueAt) }}</dd>
+            </div>
+            <div>
+              <dt class="text-muted-foreground">归还</dt>
+              <dd class="tabular-nums">{{ r.returnedAt ? formatDateTime(r.returnedAt) : '—' }}</dd>
+            </div>
+          </dl>
+        </Card>
+      </template>
+      <EmptyState v-else title="暂无借阅记录" description="去馆藏页挑一本好书吧">
+        <template #icon><ClockIcon /></template>
+      </EmptyState>
+    </div>
 
     <div class="flex items-center justify-between text-sm text-muted-foreground">
       <span>共 {{ total }} 条 · 第 {{ page }} / {{ pageCount }} 页</span>

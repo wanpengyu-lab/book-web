@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
-const model = defineModel<string>()
+const model = defineModel<string | number>()
 
 const props = defineProps<{ class?: string; placeholder?: string; type?: string }>()
 

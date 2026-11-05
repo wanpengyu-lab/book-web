@@ -1,5 +1,7 @@
 <script setup lang="ts">
-/** 图书卡片（卡片视图）：封面占位 + 元信息 + 状态标签，点击进详情 */
+/** 图书卡片（卡片视图）：封面占位 + 元信息 + 状态标签，点击进详情
+ * 动效 2：hover 边框提亮 + 阴影加深，位移 2px（-translate-y-0.5）
+ */
 import { computed } from 'vue'
 import type { Book } from '@/api/types'
 import StatusTag from '@/components/StatusTag.vue'
@@ -13,7 +15,7 @@ const initials = computed(() => props.book.title.slice(0, 2))
 <template>
   <RouterLink
     :to="`/books/${book.id}`"
-    class="group flex gap-4 rounded-lg border border-border bg-card p-4 shadow-rest transition-colors hover:border-ring/40 hover:shadow-hover"
+    class="group flex gap-4 rounded-lg border border-border bg-card p-4 shadow-rest transition-all duration-150 hover:-translate-y-0.5 hover:border-ring/50 hover:shadow-hover"
   >
     <div
       class="flex h-24 w-16 shrink-0 items-center justify-center rounded-sm bg-muted text-sm font-semibold text-muted-foreground select-none"

@@ -3,7 +3,7 @@
  * /login：登录表单（3D 背景位留空，v0.9 接 TresJS 粒子场）
  * mock 阶段不校验密码：admin / zhangsan / lisi 任一用户名 + 任意密码即可进入
  */
-import { ref } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/types'
 import Button from '@/components/ui/button/Button.vue'
@@ -16,6 +16,9 @@ import Input from '@/components/ui/input/Input.vue'
 import { BookIcon } from '@/components/icons'
 import { toastError } from '@/components/ui/toast/use-toast'
 import { useUserStore } from '@/stores/user'
+
+// 3D 粒子场：路由级懒加载 chunk（three 只出现在该 chunk，主包不含）
+const Login3D = defineAsyncComponent(() => import('@/components/login/Login3D.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -45,10 +48,10 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <div class="relative flex min-h-screen items-center justify-center px-4">
-    <!-- 3D 背景位：v0.9 挂 TresJS 粒子场（路由级懒加载 chunk） -->
-    <div class="pointer-events-none absolute inset-0" aria-hidden="true"></div>
+    <!-- 3D 背景位：TresJS 粒子场（桌面 800 / 移动 200 粒子；reduced-motion → 静态渐变网格） -->
+    <Login3D />
 
-    <Card class="w-full max-w-sm">
+    <Card class="relative z-10 w-full max-w-sm">
       <CardHeader class="items-start">
         <div class="mb-2 flex items-center gap-2 text-lg font-semibold tracking-tight">
           <BookIcon class="size-5 text-primary" />

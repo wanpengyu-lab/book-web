@@ -34,5 +34,7 @@ const delegatedClass = computed(() =>
 </script>
 
 <template>
-  <span :class="delegatedClass">{{ label }}</span>
+  <Transition name="tag" mode="out-in">
+    <span :key="kind" :class="delegatedClass">{{ label }}</span>
+  </Transition>
 </template>

@@ -1,1 +1,0 @@
-import{t as e}from"./http-Bw3qrJIB.js";function t(t){return e(`GET`,`/api/books`,{query:{...t,size:t.size??5}})}function n(t){return e(`GET`,`/api/books/${t}`)}function r(t){return e(`PUT`,`/api/books/${t}/borrow`)}function i(t){return e(`PUT`,`/api/books/${t}/return`)}function a(t){return e(`POST`,`/api/books/${t}/reserve`)}export{a,t as i,n,i as r,r as t};

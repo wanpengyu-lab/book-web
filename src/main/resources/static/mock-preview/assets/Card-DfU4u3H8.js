@@ -1,0 +1,1 @@
+import{F as e,Ft as t,R as n,c as r,f as i,v as a}from"./runtime-core.esm-bundler-DcTLEow3.js";import{w as o}from"./index-Byvl6BYe.js";var s=a({__name:`Card`,props:{class:{}},setup(a){let s=a,c=r(()=>o(`rounded-lg border border-border bg-card text-card-foreground shadow-rest`,s.class));return(r,a)=>(e(),i(`div`,{class:t(c.value)},[n(r.$slots,`default`)],2))}});export{s as t};

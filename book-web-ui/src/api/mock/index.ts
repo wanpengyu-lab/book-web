@@ -346,15 +346,38 @@ function assistantChat(body: unknown): Result<{ reply: string } | null> {
     throw new MockHttpError(40001, '参数校验失败：message 必填')
   }
   const message = payload.message.trim()
-  const keyword = message.replace(/[馆里有哪些有本借阅状态吗么呢？?？\s]/g, '')
-  const matches = books
-    .filter((b) => b.title.includes(keyword) || b.author.includes(keyword) || b.category.includes(keyword))
-    .slice(0, 6)
+
+  // 工具 search_books 语义：① 分类词 → ② 《书名》 → ③ 清洗后关键词（书名/作者/分类）
+  const categories = [...new Set(books.map((b) => b.category))]
+  let matches: typeof books = []
+  const cat = categories.find((c) => c !== '未分类' && message.includes(c))
+  if (cat) {
+    matches = books.filter((b) => b.category === cat)
+  }
+  if (matches.length === 0) {
+    const quoted = message.match(/《(.+?)》/)?.[1]
+    if (quoted) matches = books.filter((b) => b.title.includes(quoted))
+  }
+  if (matches.length === 0) {
+    const kw = message.replace(/[馆里哪些有本借阅状态如何样吗呢么请帮找看看下给我介绍一的小说图书？?？\s，。,、]/g, '')
+    if (kw) {
+      matches = books.filter(
+        (b) => b.title.includes(kw) || b.author.includes(kw) || b.category.includes(kw),
+      )
+    }
+  }
+  // ④ 作者片段兜底（如「马尔克斯」）
+  if (matches.length === 0) {
+    matches = books.filter((b) => {
+      const fragments = b.author.split(/[\/\s·，,（）()]+/).filter((f) => f.length >= 2)
+      return fragments.some((f) => message.includes(f))
+    })
+  }
 
   if (matches.length === 0) {
     return ok({ reply: `馆内没有找到与「${message}」相关的图书。您可以换个关键词，例如问我"馆里有哪些科幻小说"。` })
   }
-  const lines = matches.map((b) => `《${b.title}》— ${b.author}（${b.category}，${b.borrowed ? '在借' : '在馆'}）`)
+  const lines = matches.slice(0, 6).map((b) => `《${b.title}》— ${b.author}（${b.category}，${b.borrowed ? '在借' : '在馆'}）`)
   return ok({
     reply: `根据当前馆藏，为您找到 ${matches.length} 本相关图书：\n${lines.join('\n')}\n需要查询某本书的借阅状态，可以直接告诉我书名。`,
   })
