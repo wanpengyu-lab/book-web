@@ -6,3 +6,12 @@ target/
 mvnw
 mvnw.cmd
 HELP.md
+
+# 前端源码与依赖不进镜像：生产构建产物已放在 src/main/resources/static/
+# （排除后构建上下文从 ~330MB 降到几 MB，上传与构建都更快）
+book-web-ui/
+docs/
+*.tar.gz
+*.zip
+.env
+.env.*
