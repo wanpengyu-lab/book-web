@@ -83,7 +83,8 @@ async function onSubmit(): Promise<void> {
 </script>
 
 <template>
-  <div class="relative flex min-h-screen items-center justify-center px-4">
+  <!-- overflow-hidden：视差层 translate3d ±8px 会被裁在本页内，不再撑出文档滚动条（v1.0.1 实机修复） -->
+  <div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
     <!-- 3D 背景位：TresJS 粒子场（桌面 800 / 移动 200 粒子；reduced-motion → 静态渐变网格） -->
     <Login3D />
 
