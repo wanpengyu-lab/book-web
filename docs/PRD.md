@@ -581,7 +581,7 @@ book-web-ui/
 | 交互 | 骨架屏（SkeletonRow 替代文字 loading）；删除乐观更新 + 5s toast 撤销（替代 confirm）；批量多选 → 批量借阅/删除/导出 CSV（UTF-8 BOM）；键盘流 `/` 聚焦搜索、Esc 关弹窗、方向键选行回车借阅；EmptyState 全站空态 |
 | AI 侧栏 | AiPanel 完整实现：全局悬浮按钮 + backdrop-blur 面板，mock 问答样例对 + 本地打字机效果，回答内嵌馆藏链接（mock 路由跳详情） |
 | 扫码 UI | 列表页「扫码建档」入口：`'BarcodeDetector' in window` 检测，支持则摄像头扫码，否则 ISBN 手输框；查到后（mock ISBN 查询）预填 Dialog 表单允许修正提交 |
-| 3D | `/login` TresJS 粒子场（桌面 800 / 移动 200 粒子，路由级 lazy chunk），鼠标视差 ±8px；`prefers-reduced-motion` → 静态渐变网格；移动端降粒子或关闭 |
+| 3D | `/login` TresJS 粒子场（桌面 800 / 移动 200 粒子，路由级 lazy chunk），鼠标视差 ±8px（**v1.0.2 经用户拍板移除视差**，现为静态背景缓慢自转）；`prefers-reduced-motion` → 静态渐变网格；移动端降粒子或关闭 |
 | PWA | vite-plugin-pwa：manifest + autoUpdate；静态资源 precache，`GET /api/books` network-first 兜底 cache（真实验证留 v0.10） |
 | 响应式 | `<768px`：表格转卡片布局、操作底部动作、触控目标 ≥44px |
 
